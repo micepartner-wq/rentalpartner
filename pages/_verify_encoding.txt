@@ -1,0 +1,7 @@
+getComponentComponentImage = (name: string) => {
+  if (name.includes("노트북")) return "/comp-notebook.svg";
+  if (name.includes("테이블")) return "/comp-table.svg";
+  if (name.includes("의자")) return "/comp-chair.svg";
+  if (name.includes("복합기") || name.includes("프린터")) return "/comp-printer.svg";
+  if (name.includes("냉장고")) return "/comp-fridge.svg";
+  if (name.includes("커피머신")) return "/comp-cof
