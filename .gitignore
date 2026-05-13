@@ -35,6 +35,7 @@ Thumbs.db
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+gcm-diagnose.log
 server/serviceAccountKey.json
 
 # Testing

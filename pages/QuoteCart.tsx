@@ -12,13 +12,14 @@ import {
 } from "../src/utils/quoteCart";
 import { useAuth } from "../src/context/AuthContext";
 import { usePriceDisplay } from "../src/context/PriceDisplayContext";
-import { getPublicPriceClassName, getPublicPriceText, INQUIRY_PRICE_TEXT_CLASS } from "../src/utils/priceDisplay";
+import { getPublicPriceClassName, getPublicPriceText, INQUIRY_PRICE_TEXT_CLASS, isVisiblePriceMode } from "../src/utils/priceDisplay";
 
 export const QuoteCartPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { mode: priceDisplayMode, loading: priceDisplayLoading } = usePriceDisplay();
   const [items, setItems] = useState<QuoteCartItem[]>([]);
+  const [combinationQuantityDrafts, setCombinationQuantityDrafts] = useState<Record<string, string>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<{
     open: boolean;
     type: "single" | "selected" | null;
@@ -55,6 +56,61 @@ export const QuoteCartPage: React.FC = () => {
       product_quantity: nextQuantity,
       expected_people: nextQuantity,
       total_price: Math.round(unitBase * nextQuantity + optionAmount),
+    });
+  };
+
+  const updateCombinationOptionQuantity = (item: QuoteCartItem, optionIndex: number, quantity: number) => {
+    const nextOptionQuantity = Math.max(1, quantity);
+    const nextSelectedOptions = item.selected_options.map((option, index) =>
+      index === optionIndex ? { ...option, quantity: nextOptionQuantity } : option,
+    );
+    const nextProductQuantity = nextSelectedOptions.reduce((sum, option) => sum + option.quantity, 0);
+    const previousOptionAmount = item.selected_options.reduce((sum, option) => sum + option.price * option.quantity, 0);
+    const nextOptionAmount = nextSelectedOptions.reduce((sum, option) => sum + option.price * option.quantity, 0);
+    const unitBase = Math.max(item.total_price - previousOptionAmount, 0) / Math.max(item.product_quantity || 1, 1);
+
+    updateItem(item.cart_item_id, {
+      selected_options: nextSelectedOptions,
+      product_quantity: nextProductQuantity,
+      expected_people: nextProductQuantity,
+      total_price: Math.round(unitBase * nextProductQuantity + nextOptionAmount),
+    });
+  };
+
+  const getCombinationDraftKey = (cartItemId: string, optionIndex: number) => `${cartItemId}:${optionIndex}`;
+
+  const clearCombinationQuantityDraft = (cartItemId: string, optionIndex: number) => {
+    const draftKey = getCombinationDraftKey(cartItemId, optionIndex);
+    setCombinationQuantityDrafts((prev) => {
+      if (!(draftKey in prev)) return prev;
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
+    });
+  };
+
+  const handleCombinationQuantityInputChange = (item: QuoteCartItem, optionIndex: number, rawValue: string) => {
+    if (!/^\d*$/.test(rawValue)) return;
+    const draftKey = getCombinationDraftKey(item.cart_item_id, optionIndex);
+    setCombinationQuantityDrafts((prev) => ({ ...prev, [draftKey]: rawValue }));
+    if (rawValue === "") return;
+    const nextQuantity = parseInt(rawValue, 10);
+    if (Number.isNaN(nextQuantity)) return;
+    updateCombinationOptionQuantity(item, optionIndex, nextQuantity);
+  };
+
+  const handleCombinationQuantityInputBlur = (item: QuoteCartItem, optionIndex: number, fallbackQuantity: number) => {
+    const draftKey = getCombinationDraftKey(item.cart_item_id, optionIndex);
+    const draftValue = combinationQuantityDrafts[draftKey];
+    if (draftValue === undefined) return;
+    if (draftValue !== "") {
+      const nextQuantity = Math.max(1, parseInt(draftValue, 10) || fallbackQuantity);
+      updateCombinationOptionQuantity(item, optionIndex, nextQuantity);
+    }
+    setCombinationQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
     });
   };
 
@@ -189,22 +245,24 @@ export const QuoteCartPage: React.FC = () => {
                           <div className="min-w-0">
                             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
                               <h2 className="truncate text-base font-semibold text-slate-900 md:text-lg">{item.product_name}</h2>
-                              <div
-                                className={getPublicPriceClassName({
-                                  mode: priceDisplayMode,
-                                  loading: priceDisplayLoading,
-                                  visibleClass: "text-sm font-semibold text-rose-600 md:hidden",
-                                  hiddenClass: INQUIRY_PRICE_TEXT_CLASS + " md:hidden",
-                                })}
-                              >
-                                {getPublicPriceText({ amount: item.total_price, mode: priceDisplayMode, loading: priceDisplayLoading })}
-                              </div>
+                              {(priceDisplayLoading || isVisiblePriceMode(priceDisplayMode)) && (
+                                <div
+                                  className={getPublicPriceClassName({
+                                    mode: priceDisplayMode,
+                                    loading: priceDisplayLoading,
+                                    visibleClass: "text-sm font-semibold text-rose-600 md:hidden",
+                                    hiddenClass: INQUIRY_PRICE_TEXT_CLASS + " md:hidden",
+                                  })}
+                                >
+                                  {getPublicPriceText({ amount: item.total_price, mode: priceDisplayMode, loading: priceDisplayLoading })}
+                                </div>
+                              )}
                             </div>
 
                             {(componentCount > 0 || optionCount > 0) && (
-                              <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                              <div className={`mt-3 grid gap-3 text-sm text-slate-600 ${isCombinationOptionMode ? "max-w-xl" : "sm:grid-cols-2"}`}>
                                 {componentCount > 0 && (
-                                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                  <div className="rounded-lg bg-slate-50 px-4 py-3">
                                     <p className="mb-1 font-semibold text-slate-500">기본 구성</p>
                                     <div className="space-y-0.5">
                                       {item.basic_components.slice(0, 3).map((component, index) => (
@@ -218,14 +276,48 @@ export const QuoteCartPage: React.FC = () => {
                                   </div>
                                 )}
                                 {optionCount > 0 && (
-                                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                    <p className="mb-1 font-semibold text-slate-500">{optionLabel}</p>
-                                    <div className="space-y-0.5">
-                                      {item.selected_options.slice(0, 3).map((option, index) => (
+                                  <div className="rounded-lg bg-slate-50 px-4 py-3">
+                                    <p className="mb-2 font-semibold text-slate-500">{optionLabel}</p>
+                                    <div className={isCombinationOptionMode ? "space-y-2" : "space-y-0.5"}>
+                                      {(isCombinationOptionMode ? item.selected_options : item.selected_options.slice(0, 3)).map((option, index) => (
                                         isCombinationOptionMode ? (
-                                          <p key={`${item.cart_item_id}-option-${index}`} className="truncate">
-                                            {option.name}
-                                          </p>
+                                          <div key={`${item.cart_item_id}-option-${index}`} className="flex items-center justify-between gap-3">
+                                            <span className="truncate text-[15px]">{option.name}</span>
+                                            <div className="ml-2 inline-flex items-center gap-2 rounded-full bg-white px-2 py-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  clearCombinationQuantityDraft(item.cart_item_id, index);
+                                                  updateCombinationOptionQuantity(item, index, option.quantity - 1);
+                                                }}
+                                                className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100 disabled:opacity-40"
+                                                disabled={option.quantity <= 1}
+                                                aria-label="옵션 수량 줄이기"
+                                              >
+                                                <Minus size={12} />
+                                              </button>
+                                              <input
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={combinationQuantityDrafts[getCombinationDraftKey(item.cart_item_id, index)] ?? String(option.quantity)}
+                                                onChange={(event) => handleCombinationQuantityInputChange(item, index, event.target.value)}
+                                                onBlur={() => handleCombinationQuantityInputBlur(item, index, option.quantity)}
+                                                className="w-14 rounded-md border border-slate-200 bg-white px-1 py-1 text-center text-sm font-semibold text-slate-700 outline-none transition-colors focus:border-slate-300"
+                                                aria-label="옵션 수량 입력"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  clearCombinationQuantityDraft(item.cart_item_id, index);
+                                                  updateCombinationOptionQuantity(item, index, option.quantity + 1);
+                                                }}
+                                                className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100"
+                                                aria-label="옵션 수량 늘리기"
+                                              >
+                                                <Plus size={12} />
+                                              </button>
+                                            </div>
+                                          </div>
                                         ) : (
                                           <div key={`${item.cart_item_id}-option-${index}`} className="flex justify-between gap-2">
                                             <span className="truncate">{option.name}</span>
@@ -233,7 +325,7 @@ export const QuoteCartPage: React.FC = () => {
                                           </div>
                                         )
                                       ))}
-                                      {item.selected_options.length > 3 && <p className="text-slate-400">외 {item.selected_options.length - 3}개</p>}
+                                      {!isCombinationOptionMode && item.selected_options.length > 3 && <p className="text-slate-400">외 {item.selected_options.length - 3}개</p>}
                                     </div>
                                   </div>
                                 )}
@@ -241,46 +333,51 @@ export const QuoteCartPage: React.FC = () => {
                             )}
 
                             <div className="mt-3 flex items-center gap-3">
-                              <div className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white">
-                                <button
-                                  onClick={() => updateQuantity(item, (item.product_quantity || 1) - 1)}
-                                  className="flex h-full w-9 items-center justify-center text-slate-500 hover:bg-slate-50 disabled:text-slate-300"
-                                  disabled={item.option_quantity_managed || (item.product_quantity || 1) <= 1}
-                                  aria-label="수량 줄이기"
-                                >
-                                  <Minus size={15} />
-                                </button>
-                                <span className="w-10 border-x border-slate-200 text-center text-sm font-semibold">{item.product_quantity || 1}</span>
-                                <button
-                                  onClick={() => updateQuantity(item, (item.product_quantity || 1) + 1)}
-                                  className="flex h-full w-9 items-center justify-center text-slate-500 hover:bg-slate-50 disabled:text-slate-300"
-                                  disabled={item.option_quantity_managed}
-                                  aria-label="수량 늘리기"
-                                >
-                                  <Plus size={15} />
-                                </button>
-                              </div>
+                              {isCombinationOptionMode ? (
+                                <div className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700">
+                                  총 {item.product_quantity || 1}개
+                                </div>
+                              ) : (
+                                <div className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white">
+                                  <button
+                                    onClick={() => updateQuantity(item, (item.product_quantity || 1) - 1)}
+                                    className="flex h-full w-9 items-center justify-center text-slate-500 hover:bg-slate-50 disabled:text-slate-300"
+                                    disabled={item.option_quantity_managed || (item.product_quantity || 1) <= 1}
+                                    aria-label="수량 줄이기"
+                                  >
+                                    <Minus size={15} />
+                                  </button>
+                                  <span className="w-10 border-x border-slate-200 text-center text-sm font-semibold">{item.product_quantity || 1}</span>
+                                  <button
+                                    onClick={() => updateQuantity(item, (item.product_quantity || 1) + 1)}
+                                    className="flex h-full w-9 items-center justify-center text-slate-500 hover:bg-slate-50 disabled:text-slate-300"
+                                    disabled={item.option_quantity_managed}
+                                    aria-label="수량 늘리기"
+                                  >
+                                    <Plus size={15} />
+                                  </button>
+                                </div>
+                              )}
                               <button onClick={() => openDeleteConfirm("single", item.cart_item_id)} className="inline-flex items-center gap-1 text-sm font-medium text-red-600">
                                 <Trash2 size={15} /> 삭제
                               </button>
                             </div>
-                            {item.option_quantity_managed && (
-                              <p className="mt-2 text-xs text-slate-500">옵션별 수량은 상품 상세페이지에서 변경할 수 있습니다.</p>
-                            )}
                           </div>
 
-                          <div className="hidden min-w-[120px] text-right md:block">
-                            <div
-                              className={getPublicPriceClassName({
-                                mode: priceDisplayMode,
-                                loading: priceDisplayLoading,
-                                visibleClass: "text-base font-semibold text-rose-600",
-                                hiddenClass: INQUIRY_PRICE_TEXT_CLASS,
-                              })}
-                            >
-                              {getPublicPriceText({ amount: item.total_price, mode: priceDisplayMode, loading: priceDisplayLoading })}
+                          {(priceDisplayLoading || isVisiblePriceMode(priceDisplayMode)) && (
+                            <div className="hidden min-w-[120px] text-right md:block">
+                              <div
+                                className={getPublicPriceClassName({
+                                  mode: priceDisplayMode,
+                                  loading: priceDisplayLoading,
+                                  visibleClass: "text-base font-semibold text-rose-600",
+                                  hiddenClass: INQUIRY_PRICE_TEXT_CLASS,
+                                })}
+                              >
+                                {getPublicPriceText({ amount: item.total_price, mode: priceDisplayMode, loading: priceDisplayLoading })}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </article>
                     );
@@ -291,16 +388,18 @@ export const QuoteCartPage: React.FC = () => {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-slate-500">선택 상품 {selectedItems.length}개</p>
-                      <p
-                        className={getPublicPriceClassName({
-                          mode: priceDisplayMode,
-                          loading: priceDisplayLoading,
-                          visibleClass: "text-xl font-semibold text-[#001E45]",
-                          hiddenClass: INQUIRY_PRICE_TEXT_CLASS,
-                        })}
-                      >
-                        {getPublicPriceText({ amount: selectedTotal, mode: priceDisplayMode, loading: priceDisplayLoading })}
-                      </p>
+                      {(priceDisplayLoading || isVisiblePriceMode(priceDisplayMode)) && (
+                        <p
+                          className={getPublicPriceClassName({
+                            mode: priceDisplayMode,
+                            loading: priceDisplayLoading,
+                            visibleClass: "text-xl font-semibold text-[#001E45]",
+                            hiddenClass: INQUIRY_PRICE_TEXT_CLASS,
+                          })}
+                        >
+                          {getPublicPriceText({ amount: selectedTotal, mode: priceDisplayMode, loading: priceDisplayLoading })}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={goRequestPage}

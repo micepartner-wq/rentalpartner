@@ -678,6 +678,7 @@ export const ProductDetailPage: React.FC = () => {
   const [productOptionSelections, setProductOptionSelections] = useState<Record<string, string>>({});
   const [productOptionSetQuantity, setProductOptionSetQuantity] = useState(1);
   const [combinationSets, setCombinationSets] = useState<Array<{ id: string; selections: Record<string, string>; quantity: number; price: number }>>([]);
+  const [combinationQuantityDrafts, setCombinationQuantityDrafts] = useState<Record<string, string>>({});
 
 
   useEffect(() => {
@@ -754,7 +755,7 @@ export const ProductDetailPage: React.FC = () => {
     if (hasProductOptions) return selectedProductOptionQuantity;
     if (typeof expectedPeople === "string") return parseInt(expectedPeople || "0", 10) || 1;
     return Math.max(expectedPeople || 1, 1);
-  }, [expectedPeople, hasProductOptions, isCombinationOptionMode, productOptionSetQuantity, selectedProductOptionQuantity]);
+  }, [combinationSets, expectedPeople, hasProductOptions, isCombinationOptionMode, selectedProductOptionQuantity]);
 
   const totalPrice = React.useMemo(() => {
     const basePrice = product?.price || 0;
@@ -766,10 +767,9 @@ export const ProductDetailPage: React.FC = () => {
   const totalPriceText = getPublicPriceText({ amount: totalPrice, mode: priceDisplayMode, loading: priceDisplayLoading });
   const guideDescription = isInquiryMode ? "상세페이지 하단 구성품을 확인하고 장바구니에 담으시면 담당자가 확인하여 견적 조건과 배송 일정을 접수해 드립니다." : "상세페이지 하단 구성품을 선택하고 장바구니에 담으시면 대여 일정, 설치 장소 정보 등을 입력하실 수 있습니다.";
           const summaryRows: SummaryRow[] = [
-    ...(isCombinationOptionMode && combinationSets.length > 0 ? combinationSets.flatMap((set) => ([
-      { label: "선택 옵션", value: <span className="text-gray-900 font-bold">{Object.values(set.selections).join(" / ")}</span> },
-      { label: product?.name || "상품", value: <span className="text-gray-900 font-bold">{set.quantity}개</span> }
-    ])) : []),
+    ...(isCombinationOptionMode && combinationSets.length > 0
+      ? [{ label: product?.name || "상품", value: <span className="text-gray-900 font-bold">{requestedQuantity}개</span> }]
+      : []),
     ...(!isPackageProduct && requestedQuantity > 0 && !isCombinationOptionMode ? [{ label: product?.name || "상품", value: hasProductOptions ? <span className="text-gray-900">{requestedQuantity}개</span> : !priceDisplayLoading && !isVisiblePriceMode(priceDisplayMode) ? <span className="text-gray-900">{requestedQuantity}개</span> : <span className={getPublicPriceClassName({ mode: priceDisplayMode, loading: priceDisplayLoading, visibleClass: 'text-gray-900', hiddenClass: INQUIRY_PRICE_TEXT_CLASS })}>{mainPriceText}</span> }] : []),
   ];
   const displaySummaryRows = summaryRows;
@@ -809,11 +809,38 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const handleUpdateCombinationQuantity = (id: string, quantity: number) => {
+    setCombinationQuantityDrafts((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     if (quantity <= 0) {
       setCombinationSets((prev) => prev.filter((s) => s.id !== id));
       return;
     }
     setCombinationSets((prev) => prev.map((s) => (s.id === id ? { ...s, quantity } : s)));
+  };
+
+  const handleCombinationQuantityInputChange = (id: string, rawValue: string) => {
+    if (!/^\d*$/.test(rawValue)) return;
+    setCombinationQuantityDrafts((prev) => ({ ...prev, [id]: rawValue }));
+    if (rawValue === "") return;
+    const nextQuantity = parseInt(rawValue, 10);
+    if (Number.isNaN(nextQuantity)) return;
+    setCombinationSets((prev) => prev.map((s) => (s.id === id ? { ...s, quantity: Math.max(1, nextQuantity) } : s)));
+  };
+
+  const handleCombinationQuantityInputBlur = (id: string, fallbackQuantity: number) => {
+    const draftValue = combinationQuantityDrafts[id];
+    if (draftValue === undefined) return;
+    const nextQuantity = draftValue === "" ? fallbackQuantity : Math.max(1, parseInt(draftValue, 10) || fallbackQuantity);
+    setCombinationSets((prev) => prev.map((s) => (s.id === id ? { ...s, quantity: nextQuantity } : s)));
+    setCombinationQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const handleRemoveCombination = (id: string) => {
@@ -847,7 +874,7 @@ export const ProductDetailPage: React.FC = () => {
     addQuoteCartItem({ product_id: id, product_name: product.name, product_image_url: product.image_url, product_catalog_type: product.catalog_type || "general", expected_people: isCombinationOptionMode ? requestedQuantity : isPackageProduct ? 0 : typeof expectedPeople === "string" ? parseInt(expectedPeople || "0", 10) || 0 : expectedPeople, product_quantity: requestedQuantity, selected: true, option_quantity_managed: hasProductOptions && !isCombinationOptionMode, option_selection_mode: hasProductOptions ? productOptionSelectionMode : undefined, total_price: totalPrice, selected_options: buildSelectedOptions(), basic_components: buildBasicComponents() });
     setQuoteCartCount(getQuoteCartCount());
     logAnalyticsEvent("quote_cart_add", { source: "product_detail", product_id: id, product_name: product.name, value: totalPrice });
-    if (showSuccessModal) setBookingModal({ show: true, message: "장바구니에 담겼습니다.\n견적 요청 또는 추가 옵션 확인을 위해 장바구니에서\n수량을 조절하실 수 있습니다.", type: "success", variant: "cart" });
+    if (showSuccessModal) setBookingModal({ show: true, message: "장바구니에 담겼습니다.\n견적 요청 또는 추가 옵션\n확인을 위해\n장바구니에서\n수량을 조절하실 수 있습니다.", type: "success", variant: "cart" });
   };
 
   const handleBooking = () => { if (!product || !id) return; setIsBooking(true); handleAddToQuoteCart({ showSuccessModal: false }); navigate("/quote-cart"); setIsBooking(false); };
@@ -1045,7 +1072,38 @@ export const ProductDetailPage: React.FC = () => {
                         {selectedSummary.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-[12.5px] text-gray-600">
                             <span className="truncate flex-1">{item.name}</span>
-                            <span className="font-medium ml-2">{item.quantityLabel}</span>
+                            {isCombinationOptionMode && combinationSets[idx] ? (
+                              <div className="ml-2 inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateCombinationQuantity(combinationSets[idx].id, item.qty - 1)}
+                                  className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100 disabled:opacity-40"
+                                  disabled={item.qty <= 1}
+                                  aria-label="수량 줄이기"
+                                >
+                                  <Minus size={11} />
+                                </button>
+                                <input
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={combinationQuantityDrafts[combinationSets[idx].id] ?? String(item.qty)}
+                                  onChange={(event) => handleCombinationQuantityInputChange(combinationSets[idx].id, event.target.value)}
+                                  onBlur={() => handleCombinationQuantityInputBlur(combinationSets[idx].id, item.qty)}
+                                  className="w-12 rounded-md border border-slate-200 bg-white px-1 py-1 text-center text-xs font-semibold text-slate-700 outline-none transition-colors focus:border-slate-300"
+                                  aria-label="?섎웾 ?낅젰"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateCombinationQuantity(combinationSets[idx].id, item.qty + 1)}
+                                  className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100"
+                                  aria-label="수량 늘리기"
+                                >
+                                  <Plus size={11} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="font-medium ml-2">{item.quantityLabel}</span>
+                            )}
                           </div>
                         ))}
                       </div>
