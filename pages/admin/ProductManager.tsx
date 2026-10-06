@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X, Save, Loader2, Upload, Image as ImageIcon, Gri
 import { getProducts, addProduct, updateProduct, deleteProduct, isGeneralBasicProduct, Product, ProductCatalogType, ProductOptionGroup, ProductOptionSelectionMode } from '../../src/api/productApi';
 import { getSections, getProductSections, setProductSections, Section } from '../../src/api/sectionApi';
 import { getAllNavMenuItems, NavMenuItem } from '../../src/api/cmsApi';
+import { getCategories, Category } from '../../src/api/categoryApi';
 import {
     addServiceOptionCategory,
     deleteServiceOptionCategory,
@@ -16,6 +17,7 @@ import {
 import { uploadImage } from '../../src/api/storageApi';
 import { usePriceDisplay } from '../../src/context/PriceDisplayContext';
 import type { ProductPriceDisplayMode } from '../../src/api/siteSettingsApi';
+import { buildCategoryMaps, sortCategories } from '../../src/utils/productCategoryRouting';
 
 // 간단한 에디터 컴포넌트
 const SimpleEditor = ({ initialValue, onChange }: { initialValue: string, onChange: (val: string) => void }) => {
@@ -134,6 +136,7 @@ export const ProductManager = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [sections, setSections] = useState<Section[]>([]);
     const [menuItems, setMenuItems] = useState<NavMenuItem[]>([]);
+    const [productCategories, setProductCategories] = useState<Category[]>([]);
     const [serviceOptionCategories, setServiceOptionCategories] = useState<ServiceOptionCategory[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -145,7 +148,7 @@ export const ProductManager = () => {
 
     const [formData, setFormData] = useState(() => createEmptyFormData('general', 'basic'));
 
-    const [viewMode, setViewMode] = useState<'general' | 'package' | 'options'>('general');
+    const [viewMode, setViewMode] = useState<'general' | 'options'>('general');
     const [selectedParentCategoryFilter, setSelectedParentCategoryFilter] = useState<string | null>(null);
     const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
     const [packageComponentParentFilter, setPackageComponentParentFilter] = useState<string | null>(null);
@@ -166,10 +169,11 @@ export const ProductManager = () => {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [p, s, m] = await Promise.all([getProducts({ catalogType: 'all' }), getSections(), getAllNavMenuItems()]);
+            const [p, s, m, c] = await Promise.all([getProducts({ catalogType: 'all' }), getSections(), getAllNavMenuItems(), getCategories().catch(() => [])]);
             setProducts(p);
             setSections(s);
             setMenuItems(m);
+            setProductCategories(c);
 
             try {
                 const cooperativeCategoryNames = Array.from(new Set(
@@ -199,8 +203,7 @@ export const ProductManager = () => {
     };
 
     const resetForm = () => {
-        const defaultCatalogType: ProductCatalogType = viewMode === 'package' ? 'package' : 'general';
-        setFormData(createEmptyFormData(defaultCatalogType, 'basic'));
+        setFormData(createEmptyFormData('general', 'basic'));
         setEditingProduct(null);
         setSelectedSections([]);
         setSelectedParentCategory('');
@@ -213,12 +216,11 @@ export const ProductManager = () => {
 
     const openCreateModal = () => {
         const productType = (viewMode === 'options' ? 'cooperative' : 'basic') as NonNullable<Product['product_type']>;
-        const catalogType: ProductCatalogType = viewMode === 'package' ? 'package' : 'general';
 
         setEditingProduct(null);
         setSelectedSections([]);
         setSelectedParentCategory('');
-        setFormData(createEmptyFormData(catalogType, productType));
+        setFormData(createEmptyFormData('general', productType));
         setShowForm(true);
     };
 
@@ -263,12 +265,9 @@ export const ProductManager = () => {
         if (product.product_type === 'cooperative') {
             setSelectedParentCategory('');
         } else {
-            const childItem = menuItems.find(i => i.name === product.category);
-            if (childItem && childItem.category) {
-                setSelectedParentCategory(childItem.category);
-            } else {
-                setSelectedParentCategory('');
-            }
+            const matchedCategory = productCategories.find((category) => category.name === product.category);
+            const parentCategory = matchedCategory?.parent_id ? productCategoryById.get(matchedCategory.parent_id) : null;
+            setSelectedParentCategory(parentCategory?.name || '');
         }
 
         setPackageComponentParentFilter(null);
@@ -392,25 +391,37 @@ export const ProductManager = () => {
         [menuItems, products],
     );
 
+    const { byId: productCategoryById, childrenByParentId: productChildrenByParentId } = useMemo(
+        () => buildCategoryMaps(productCategories),
+        [productCategories],
+    );
+
+    const rootProductCategories = useMemo(
+        () => sortCategories(productCategories.filter((category) => !category.parent_id)),
+        [productCategories],
+    );
+
+    const productChildCategoriesByParentName = useMemo(() => {
+        const next = new Map<string, Category[]>();
+
+        rootProductCategories.forEach((parent) => {
+            next.set(parent.name, productChildrenByParentId.get(parent.id || null) || []);
+        });
+
+        return next;
+    }, [productChildrenByParentId, rootProductCategories]);
+
     const packageComponentParentMenus = useMemo(
-        () =>
-            sortMenuItems(menuItems)
-                .filter((item) => !item.category)
-                .filter((parent) => {
-                    const childMenus = menuItems.filter((child) => child.category === parent.name);
-                    return childMenus.length > 0;
-                }),
-        [menuItems],
+        () => rootProductCategories.filter((parent) => (productChildCategoriesByParentName.get(parent.name) || []).length > 0),
+        [productChildCategoriesByParentName, rootProductCategories],
     );
 
     const packageComponentChildMenus = useMemo(
         () =>
             packageComponentParentFilter
-                ? sortMenuItems(
-                    menuItems.filter((item) => item.category === packageComponentParentFilter),
-                )
+                ? (productChildCategoriesByParentName.get(packageComponentParentFilter) || [])
                 : [],
-        [menuItems, packageComponentParentFilter],
+        [packageComponentParentFilter, productChildCategoriesByParentName],
     );
 
     const filteredPackageComponentProducts = useMemo(() => {
@@ -620,18 +631,15 @@ export const ProductManager = () => {
     const hasUnassignedServiceProducts = serviceProducts.some(
         (product) => !getNormalizedCategoryName(product.category),
     );
-    const activeCatalogType: ProductCatalogType = viewMode === 'package' ? 'package' : 'general';
     const currentProductType = formData.product_type || 'basic';
     const isBasicProductEditor = currentProductType === 'basic';
     const isAdditionalOptionEditor = currentProductType === 'essential' || currentProductType === 'additional';
     const isServiceEditor = currentProductType === 'cooperative';
     const isOptionEditor = !isBasicProductEditor;
-    const listTitle = viewMode === 'general' ? '일반상품 목록' : viewMode === 'package' ? '패키지 목록' : '부가서비스 목록';
+    const listTitle = viewMode === 'general' ? '상품 목록' : '부가서비스 목록';
     const createButtonLabel = viewMode === 'general'
-        ? '새 일반상품 추가'
-        : viewMode === 'package'
-            ? '새 패키지 추가'
-            : '새 부가서비스 추가';
+        ? '새 상품 추가'
+        : '새 부가서비스 추가';
     const editorTypeLabel = isServiceEditor
         ? '부가서비스'
         : isAdditionalOptionEditor
@@ -655,10 +663,9 @@ export const ProductManager = () => {
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
-            {/* 상단 탭: 일반상품 / 패키지 / 부가서비스 */}
+            {/* 상단 탭: 상품(일반+패키지) / 부가서비스 */}
             <div className="flex border-b mb-6">
-                <button onClick={() => { setViewMode('general'); setSelectedParentCategoryFilter(null); setSelectedCategoryFilter(null); }} className={`px-6 py-3 font-bold transition-all ${viewMode === 'general' ? 'border-b-2 border-[#001E45] text-[#001E45]' : 'text-slate-400'}`}>일반 상품 관리</button>
-                <button onClick={() => { setViewMode('package'); setSelectedParentCategoryFilter(null); setSelectedCategoryFilter(null); }} className={`px-6 py-3 font-bold transition-all ${viewMode === 'package' ? 'border-b-2 border-[#001E45] text-[#001E45]' : 'text-slate-400'}`}>패키지 상품 관리</button>
+                <button onClick={() => { setViewMode('general'); setSelectedParentCategoryFilter(null); setSelectedCategoryFilter(null); }} className={`px-6 py-3 font-bold transition-all ${viewMode === 'general' ? 'border-b-2 border-[#001E45] text-[#001E45]' : 'text-slate-400'}`}>상품 관리</button>
                 <button onClick={() => { setViewMode('options'); setSelectedCategoryFilter(null); }} className={`px-6 py-3 font-bold transition-all ${viewMode === 'options' ? 'border-b-2 border-[#001E45] text-[#001E45]' : 'text-slate-400'}`}>부가서비스 관리</button>
             </div>
 
@@ -733,11 +740,10 @@ export const ProductManager = () => {
                 </div>
             </div>
 
-            {/* 일반/패키지 상품 관리 - 계층형 카테고리 필터 */}
+            {/* 상품 관리 - 계층형 카테고리 필터 */}
             {viewMode !== 'options' && (() => {
                 const packageProducts = products.filter(p =>
-                    (p.catalog_type || 'general') === activeCatalogType &&
-                    (p.product_type === 'basic' || !p.product_type)
+                    p.product_type === 'basic' || !p.product_type
                 );
 
                 // 상품에 있는 카테고리(중분류) 목록
@@ -753,12 +759,16 @@ export const ProductManager = () => {
 
                 // 선택된 대분류의 중분류 (상품이 있는 것만)
                 const childMenus = selectedParentCategoryFilter
-                    ? menuItems
-                        .filter(m => m.category === selectedParentCategoryFilter)
-                        .sort((a, b) => a.display_order - b.display_order)
+                    ? (productChildCategoriesByParentName.get(selectedParentCategoryFilter) || [])
                     : [];
 
-                if (parentMenus.length === 0) return null;
+                const effectiveParentMenus = rootProductCategories
+                    .filter(parent => (productChildCategoriesByParentName.get(parent.name) || []).length > 0);
+                const effectiveChildMenus = selectedParentCategoryFilter
+                    ? (productChildCategoriesByParentName.get(selectedParentCategoryFilter) || [])
+                    : [];
+
+                if (effectiveParentMenus.length === 0) return null;
 
                 return (
                     <div className="space-y-3 mb-6">
@@ -776,8 +786,8 @@ export const ProductManager = () => {
                             >
                                 전체 ({packageProducts.length})
                             </button>
-                            {parentMenus.map(parent => {
-                                const children = menuItems.filter(c => c.category === parent.name);
+                            {effectiveParentMenus.map(parent => {
+                                const children = productChildCategoriesByParentName.get(parent.name) || [];
                                 const count = packageProducts.filter(p => children.some(c => c.name === p.category)).length;
                                 return (
                                     <button
@@ -798,7 +808,7 @@ export const ProductManager = () => {
                         </div>
 
                         {/* 중분류 탭 (2차 메뉴) - 대분류 선택 시만 표시 */}
-                        {selectedParentCategoryFilter && childMenus.length > 0 && (
+                        {selectedParentCategoryFilter && effectiveChildMenus.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     onClick={() => setSelectedCategoryFilter(null)}
@@ -901,6 +911,24 @@ export const ProductManager = () => {
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
+                            {isBasicProductEditor && !editingProduct && (
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">상품 유형</label>
+                                    <div className="inline-flex gap-1 rounded-lg bg-slate-100 p-1">
+                                        {([['general', '일반 상품'], ['package', '패키지 상품']] as const).map(([value, label]) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, catalog_type: value })}
+                                                className={`rounded-md px-4 py-2 text-sm font-medium transition-all ${(formData.catalog_type || 'general') === value ? 'bg-white text-[#001E45] shadow-sm' : 'text-slate-500'}`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* 기본 정보 */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-4">
@@ -949,7 +977,7 @@ export const ProductManager = () => {
                                                     className="w-full px-4 py-2 border rounded-lg outline-none bg-slate-50 focus:bg-white transition-colors"
                                                 >
                                                     <option value="">대분류 선택</option>
-                                                    {menuItems.filter(i => !i.category).sort((a, b) => a.display_order - b.display_order).map(parent => (
+                                                    {rootProductCategories.map(parent => (
                                                         <option key={parent.id} value={parent.name}>{parent.name}</option>
                                                     ))}
                                                 </select>
@@ -966,9 +994,7 @@ export const ProductManager = () => {
                                                     <option value="">
                                                         {!selectedParentCategory ? '대분류를 먼저 선택하세요' : '중분류 선택'}
                                                     </option>
-                                                    {selectedParentCategory && menuItems
-                                                        .filter(i => i.category === selectedParentCategory)
-                                                        .sort((a, b) => a.display_order - b.display_order)
+                                                    {selectedParentCategory && (productChildCategoriesByParentName.get(selectedParentCategory) || [])
                                                         .map(child => (
                                                             <option key={child.id} value={child.name}>{child.name}</option>
                                                         ))
@@ -1502,25 +1528,22 @@ export const ProductManager = () => {
                             .filter(p => {
                                 // 상품 타입 필터
                                 let typeMatch = false;
-                                if (viewMode === 'general' || viewMode === 'package') {
-                                    typeMatch =
-                                        (p.product_type === 'basic' || !p.product_type) &&
-                                        (p.catalog_type || 'general') === activeCatalogType;
+                                if (viewMode === 'general') {
+                                    typeMatch = p.product_type === 'basic' || !p.product_type;
                                 } else if (viewMode === 'options') {
                                     typeMatch = p.product_type === 'cooperative';
                                 }
 
                                 if (!typeMatch) return false;
 
-                                // 일반/패키지 상품 관리: 대분류/중분류 필터
-                                if (viewMode === 'general' || viewMode === 'package') {
+                                // 상품 관리: 대분류/중분류 필터
+                                if (viewMode === 'general') {
                                     if (selectedCategoryFilter) {
                                         // 중분류가 선택된 경우
                                         return p.category === selectedCategoryFilter;
                                     } else if (selectedParentCategoryFilter) {
                                         // 대분류만 선택된 경우: 해당 대분류의 모든 중분류 상품 표시
-                                        const childCategories = menuItems
-                                            .filter(m => m.category === selectedParentCategoryFilter)
+                                        const childCategories = (productChildCategoriesByParentName.get(selectedParentCategoryFilter) || [])
                                             .map(m => m.name);
                                         return childCategories.includes(p.category || '');
                                     }
@@ -1542,7 +1565,7 @@ export const ProductManager = () => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-4">
                                             {p.image_url ? <img src={p.image_url} className="w-12 h-12 object-cover rounded-xl shadow-sm" /> : <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-300"><ImageIcon size={20} /></div>}
-                                            <div className="font-bold text-slate-800">{p.name}</div>
+                                            <div className="flex items-center gap-2 font-bold text-slate-800">{p.name}{p.catalog_type === 'package' && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">패키지</span>}</div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 font-medium">{getCategoryLabel(p.category)}</td>

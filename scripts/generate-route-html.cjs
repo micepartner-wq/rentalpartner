@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 const SITE_NAME = '렌탈어때';
@@ -21,7 +21,7 @@ const BOARD_META = {
 };
 
 const STATIC_ROUTES = [
-  ['/', '렌탈어때 | 종합렌탈 전문 기업', '복합기, 노트북, 데스크탑 등 사무기기를 합리적인 조건으로 렌탈하세요. 렌탈어때 렌탈 서비스.', 'daily', '1.0'],
+  ['/', '렌탈어때 | 기업 맞춤 종합 렌탈', '기업 행사, 관공서 비품은 렌탈어때! 사무기기부터 대형 MICE 장비까지 맞춤 견적과 대량 납품을 지원하는 종합 렌탈 파트너입니다.', 'daily', '1.0'],
   ['/products', '상품목록 | 렌탈어때', '복합기, 노트북, 데스크탑 등 렌탈어때의 사무기기 렌탈 상품을 확인해보세요.', 'daily', '0.8'],
   ['/cs', '고객센터 | 렌탈어때', '렌탈어때 고객센터입니다. 자주 묻는 질문부터 실시간 상담까지 도와드립니다.', 'monthly', '0.6'],
   ['/notice', '공지사항 - 렌탈어때', '렌탈어때 공지사항 페이지입니다.', 'daily', '0.7'],
@@ -61,7 +61,25 @@ function loadEnv() {
 const env = loadEnv();
 
 const getEnv = (name) => process.env[name] || env[name] || '';
-const canonical = (route) => (route === '/' ? `${SITE_URL}/` : `${SITE_URL}${route}`);
+const canonical = (route) =>
+  route === '/' ? `${SITE_URL}/` : `${SITE_URL}${route.includes('%') ? route : encodeURI(route)}`;
+const DEFAULT_CATEGORY_SLUGS = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'src', 'utils', 'categorySlugMap.json'), 'utf8'),
+);
+const createCategorySlug = (name) => {
+  const normalized = String(name || '').replace(/s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (DEFAULT_CATEGORY_SLUGS[normalized]) return DEFAULT_CATEGORY_SLUGS[normalized];
+  return normalized
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/[/]/g, ' ')
+    .replace(/[^p{Letter}p{Number}s-]/gu, '')
+    .replace(/s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+};
+const getCategorySlug = (category) => String(category.slug || '').trim() || createCategorySlug(category.name);
 const jsonLd = (value) => JSON.stringify(value).replace(/</g, '\\u003c');
 const absUrl = (value) => {
   if (!value) return DEFAULT_IMAGE;
@@ -289,7 +307,7 @@ function homeBody(products, postsByBoard, priceDisplayMode) {
     `;
 }
 
-function productListBody(products, priceDisplayMode) {
+function productListBody(products, priceDisplayMode, meta = {}) {
   const cards = products.slice(0, 24).map((product) => `
       <a href="/products/${escapeHtml(product.id)}" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
         <div class="aspect-square overflow-hidden bg-slate-100"><img src="${escapeHtml(absUrl(product.image_url))}" alt="${escapeHtml(product.name)}" class="h-full w-full object-cover" /></div>
@@ -306,8 +324,8 @@ function productListBody(products, priceDisplayMode) {
       <main class="mx-auto max-w-7xl px-4 py-10 md:px-6 md:py-14">
         <section class="rounded-[2rem] border border-slate-200 bg-slate-50 px-6 py-10 md:px-8">
           <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Products</p>
-          <h1 class="mt-3 text-4xl font-black text-slate-900">상품목록</h1>
-          <p class="mt-4 max-w-3xl text-base leading-7 text-slate-600">복합기, 노트북, 데스크탑, 프린터 등 렌탈어때의 주요 사무기기 상품을 한눈에 확인할 수 있습니다.</p>
+          <h1 class="mt-3 text-4xl font-black text-slate-900">${escapeHtml(meta.heading || '상품목록')}</h1>
+          <p class="mt-4 max-w-3xl text-base leading-7 text-slate-600">${escapeHtml(meta.intro || '복합기, 노트북, 데스크탑, 프린터 등 렌탈어때의 주요 사무기기 상품을 한눈에 확인할 수 있습니다.')}</p>
           <p class="mt-3 text-sm font-medium text-slate-500">현재 노출 상품 ${products.length}개</p>
         </section>
         ${grid(cards)}
@@ -408,6 +426,15 @@ async function fetchProducts() {
   return rows.filter(isBasicProduct);
 }
 
+async function fetchCategories() {
+  try {
+    return await fetchRows('categories?select=id,name,slug,parent_id,display_order&order=display_order.asc');
+  } catch (error) {
+    console.warn(`Category fetch fallback: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
 async function fetchPosts() {
   return fetchRows('mice_tab_posts?select=id,board_type,title,summary,content,image_url,mobile_image_url,created_at,updated_at,is_active&is_active=eq.true&order=display_order.asc&order=created_at.desc');
 }
@@ -473,6 +500,33 @@ function writeSitemap(pages) {
   fs.writeFileSync(path.join(distDir, 'sitemap.xml'), xml, 'utf8');
 }
 
+function writeRss(pages) {
+  const rssItems = pages
+    .filter((page) => page.includeInSitemap !== false)
+    .map((page) => {
+      const pubDate = page.lastmod ? `      <pubDate>${new Date(page.lastmod).toUTCString()}</pubDate>\n` : '';
+      return `    <item>
+      <title>${escapeXml(page.title)}</title>
+      <link>${escapeXml(canonical(page.route))}</link>
+      <description>${escapeXml(page.description)}</description>
+${pubDate}    </item>`;
+    })
+    .join('\n');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>${escapeXml(SITE_NAME)} | 기업 맞춤 종합 렌탈</title>
+    <link>${escapeXml(SITE_URL)}/</link>
+    <description>기업 행사, 관공서 비품은 렌탈어때! 사무기기부터 대형 MICE 장비까지 맞춤 견적과 대량 납품을 지원하는 종합 렌탈 파트너입니다.</description>
+    <language>ko</language>
+${rssItems}
+  </channel>
+</rss>`;
+
+  fs.writeFileSync(path.join(distDir, 'rss.xml'), xml, 'utf8');
+}
+
 function buildStaticPages(products, postsByBoard, priceDisplayMode) {
   return STATIC_ROUTES.map(([route, title, description, changefreq, priority, robots]) => {
     let bodyHtml = genericBody(title, description);
@@ -522,6 +576,68 @@ function buildStaticPages(products, postsByBoard, priceDisplayMode) {
       includeInSitemap: !robots,
     };
   });
+}
+
+function buildCategoryPages(categories, products, priceDisplayMode) {
+  const roots = categories.filter((category) => !category.parent_id);
+  const pages = [];
+
+  const addPage = (route, trail, members) => {
+    if (members.length === 0) return;
+    const name = trail[trail.length - 1].name;
+    const title = `${name} 렌탈 | 렌탈어때`;
+    const description = `${name} 렌탈 상품 ${members.length}개를 확인하세요. 렌탈어때에서 맞춤 견적과 상담을 받아보실 수 있습니다.`;
+
+    pages.push({
+      route,
+      title,
+      description,
+      image: absUrl(members.find((product) => product.image_url)?.image_url),
+      imageAlt: name,
+      bodyHtml: productListBody(members, priceDisplayMode, { heading: name, intro: description }),
+      structuredData: [
+        breadcrumbSchema([
+          { name: '홈', url: canonical('/') },
+          { name: '상품목록', url: canonical('/products') },
+          ...trail.map((item, index) => ({
+            name: item.name,
+            url: canonical(index === 0 ? `/products/${trail[0].slug}` : route),
+          })),
+        ]),
+        itemListSchema(`${name} 상품목록`, canonical(route), members.slice(0, 24).map((product) => ({
+          name: product.name,
+          url: canonical(`/products/${product.id}`),
+        }))),
+      ],
+      changefreq: 'weekly',
+      priority: '0.8',
+      lastmod: BUILD_DATE,
+    });
+  };
+
+  roots.forEach((root) => {
+    const rootSlug = getCategorySlug(root);
+    if (!rootSlug) return;
+    const children = categories.filter((category) => category.parent_id === root.id);
+    const childNames = new Set(children.map((child) => child.name));
+
+    const rootMembers = products.filter(
+      (product) => product.category === root.name || childNames.has(product.category),
+    );
+    addPage(`/products/${rootSlug}`, [{ name: root.name, slug: rootSlug }], rootMembers);
+
+    children.forEach((child) => {
+      const childSlug = getCategorySlug(child);
+      if (!childSlug) return;
+      addPage(
+        `/products/${rootSlug}/${childSlug}`,
+        [{ name: root.name, slug: rootSlug }, { name: child.name, slug: childSlug }],
+        products.filter((product) => product.category === child.name),
+      );
+    });
+  });
+
+  return pages;
 }
 
 function buildProductPages(products, priceDisplayMode) {
@@ -614,12 +730,14 @@ function buildPostPages(posts) {
 
 async function main() {
   let products = [];
+  let categories = [];
   let posts = [];
   let priceDisplayMode = DEFAULT_PRICE_DISPLAY_MODE;
 
   try {
-    [products, posts, priceDisplayMode] = await Promise.all([
+    [products, categories, posts, priceDisplayMode] = await Promise.all([
       fetchProducts(),
+      fetchCategories(),
       fetchPosts(),
       fetchPriceDisplayMode(),
     ]);
@@ -635,6 +753,7 @@ async function main() {
 
   const pages = [
     ...buildStaticPages(products, postsByBoard, priceDisplayMode),
+    ...buildCategoryPages(categories, products, priceDisplayMode),
     ...buildProductPages(products, priceDisplayMode),
     ...buildPostPages(posts),
   ];
@@ -644,7 +763,8 @@ async function main() {
   }
 
   writeSitemap(pages);
-  console.log(`Generated prerendered HTML for ${pages.length} routes and a dynamic sitemap.`);
+  writeRss(pages);
+  console.log(`Generated prerendered HTML for ${pages.length} routes, a dynamic sitemap, and RSS feed.`);
 }
 
 main().catch((error) => {

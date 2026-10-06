@@ -1,9 +1,14 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Hero } from '../components/Hero';
+import { B2BCurationWizard } from '../components/B2BCurationWizard';
 import { Helmet } from 'react-helmet-async';
 import { QuickMenu } from '../components/QuickMenu';
 import { PromoSection } from '../components/PromoSection';
 import { ProductSection } from '../components/ProductSection';
+import { ClientLogoMarqueeSection } from '../components/ClientLogoMarqueeSection';
+import { WhyChooseUsSection } from '../components/WhyChooseUsSection';
+import { HowItWorksSection } from '../components/HowItWorksSection';
+import { BottomCtaSection } from '../components/BottomCtaSection';
 import { getProducts, Product } from '../src/api/productApi';
 import { getActiveSections, getProductsBySection, Section } from '../src/api/sectionApi';
 import { Loader2 } from 'lucide-react';
@@ -79,14 +84,15 @@ export const MainPage: React.FC = () => {
     return (
         <main>
             <Helmet>
-                <title>렌탈어때 | 종합렌탈 전문 기업</title>
-                <meta name="description" content="복합기, 노트북, 데스크탑 등 사무기기를 합리적인 조건으로 렌탈하세요. 렌탈어때 렌탈 서비스." />
+                <title>렌탈어때 | 기업 맞춤 종합 렌탈</title>
+                <meta name="description" content="기업 행사, 관공서 비품은 렌탈어때! 사무기기부터 대형 MICE 장비까지 맞춤 견적과 대량 납품을 지원하는 종합 렌탈 파트너입니다." />
                 <link rel="canonical" href="https://rentalpartner.kr/" />
             </Helmet>
+            <h1 className="sr-only">렌탈어때 - B2B B2G 기업 맞춤 종합 렌탈. 사무기기, 복합기, 행사 장비, 관공서 컨퍼런스 비품 렌탈 전문</h1>
             <PopupManager />
             <Hero />
             <QuickMenu />
-            <PromoSection />
+            <B2BCurationWizard />
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">
@@ -121,6 +127,13 @@ export const MainPage: React.FC = () => {
                     등록된 상품이 없습니다. 상품이 준비되는 대로 업데이트하겠습니다.
                 </div>
             )}
+
+            <WhyChooseUsSection />
+            <HowItWorksSection />
+            <ClientLogoMarqueeSection />
+            <PromoSection />
+
+            <BottomCtaSection />
         </main>
     );
 };

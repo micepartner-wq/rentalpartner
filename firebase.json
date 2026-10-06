@@ -244,6 +244,51 @@
                 "source": "/company",
                 "destination": "https://humanpartner.kr/",
                 "type": 301
+            },
+            {
+                "source": "/products/appliance-furniture",
+                "destination": "/products/%EA%B0%80%EC%A0%84",
+                "type": 301
+            },
+            {
+                "source": "/products/appliance-furniture/desk-table",
+                "destination": "/products/%EC%82%AC%EB%AC%B4%EA%B0%80%EA%B5%AC/desk-table",
+                "type": 301
+            },
+            {
+                "source": "/products/appliance-furniture/chair-sofa",
+                "destination": "/products/%EC%82%AC%EB%AC%B4%EA%B0%80%EA%B5%AC/chair-sofa",
+                "type": 301
+            },
+            {
+                "source": "/products/appliance-furniture/partition",
+                "destination": "/products/%EC%82%AC%EB%AC%B4%EA%B0%80%EA%B5%AC/partition",
+                "type": 301
+            },
+            {
+                "source": "/products/appliance-furniture/refrigerator",
+                "destination": "/products/%EA%B0%80%EC%A0%84/refrigerator",
+                "type": 301
+            },
+            {
+                "source": "/products/appliance-furniture/ac-purifier",
+                "destination": "/products/%EA%B0%80%EC%A0%84",
+                "type": 301
+            },
+            {
+                "source": "/products/tv",
+                "destination": "/products/tv-%EC%9D%8C%ED%96%A5",
+                "type": 301
+            },
+            {
+                "source": "/products/tv/video-conference",
+                "destination": "/products/tv-%EC%9D%8C%ED%96%A5/video-conference",
+                "type": 301
+            },
+            {
+                "source": "/products/lighting",
+                "destination": "/products/%ED%96%89%EC%82%AC%EC%9A%A9%ED%92%88/lighting",
+                "type": 301
             }
         ],
         "rewrites": [

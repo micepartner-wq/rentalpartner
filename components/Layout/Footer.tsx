@@ -1,26 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Container } from '../ui/Container';
-import { ShoppingCart } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import { getQuoteCartCount } from '../../src/utils/quoteCart';
+import { Link } from 'react-router-dom';
 
 export function Footer() {
-    const [quoteCartCount, setQuoteCartCount] = useState(0);
-    const { pathname } = useLocation();
-    const hideMobileFloatingButtons =
-        pathname.startsWith('/products/') || pathname.startsWith('/p/');
-
-    useEffect(() => {
-        const updateCartCount = () => {
-            setQuoteCartCount(getQuoteCartCount());
-        };
-
-        updateCartCount();
-        window.addEventListener('quoteCartUpdated', updateCartCount);
-
-        return () => window.removeEventListener('quoteCartUpdated', updateCartCount);
-    }, []);
-
     return (
         <footer className="bg-white border-t border-gray-200 pt-0 pb-24 md:pb-20 text-[14px] text-gray-600">
             {/* TOP LAYER: Links (Full width border) */}
@@ -91,7 +73,10 @@ export function Footer() {
                             <p>
                                 개인정보보호책임자 : 이기섭(micepartner@micepartner.co.kr)
                             </p>
-                            <p className="mt-6 text-[13px] md:text-[14px] text-gray-400 font-medium">
+                            <p className="mt-4 text-[12px] md:text-[13px] leading-6 text-gray-400 break-keep">
+                                렌탈어때는 복합기·프린터·노트북 등 사무기기 렌탈부터 MICE·행사 장비, 관공서 납품까지 B2B·B2G 맞춤 견적을 제공하는 종합 렌탈 파트너입니다.
+                            </p>
+                            <p className="mt-3 text-[13px] md:text-[14px] text-gray-400 font-medium">
                                 Copyright © 2024 렌탈어때. All rights reserved.
                             </p>
                         </div>
@@ -99,34 +84,6 @@ export function Footer() {
 
                 </div>
 
-                <div
-                    className={`fixed right-4 md:right-6 z-40 flex-col gap-2 ${hideMobileFloatingButtons ? 'hidden md:flex md:bottom-6' : 'flex bottom-24 md:bottom-6'}`}
-                >
-                    <Link
-                        to="/quote-cart"
-                        className="w-12 h-12 rounded-[4px] bg-[#001E45] text-white hover:bg-[#002a5e] transition-all flex items-center justify-center relative group shadow-lg"
-                        aria-label="장바구니 이동"
-                        title="장바구니"
-                    >
-                        <ShoppingCart size={22} className="group-hover:scale-110 transition-transform" />
-                        {quoteCartCount > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-semibold w-5 h-5 flex items-center justify-center rounded-full">
-                                {quoteCartCount > 99 ? '99+' : quoteCartCount}
-                            </span>
-                        )}
-                    </Link>
-
-                    <a
-                        href="http://pf.kakao.com/_iRxghX/chat"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block w-12 h-12 rounded-[4px] hover:scale-110 transition-all overflow-hidden"
-                        aria-label="카카오톡 채널 상담"
-                        title="카카오톡 상담"
-                    >
-                        <img src="/kakao.png" alt="카카오톡 채널" className="w-full h-full object-cover" />
-                    </a>
-                </div>
             </Container>
         </footer>
     );

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Container } from "../components/ui/Container";
+import { ProductDetailHero } from "../components/products/ProductDetailHero";
+import { RelatedProducts } from "../components/products/RelatedProducts";
 import {
   Loader2,
   AlertCircle,
@@ -15,6 +17,8 @@ import {
   CheckCircle,
   XCircle,
   X,
+  RotateCcw,
+  FileText,
 } from "lucide-react";
 import {
   getAdditionalOptionProducts,
@@ -623,7 +627,8 @@ const CombinationProductOptionGroups = ({
 };
 
 export const ProductDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; categorySlug?: string }>();
+  const id = params.id || params.categorySlug;
   const navigate = useNavigate();
   const {
     mode: priceDisplayMode,
@@ -651,6 +656,12 @@ export const ProductDetailPage: React.FC = () => {
   const [mobileBarExpanded, setMobileBarExpanded] = useState(false);
   const [quoteCartCount, setQuoteCartCount] = useState(0);
   const [basicComponentsExpanded, setBasicComponentsExpanded] = useState(true);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setBasicComponentsExpanded(false);
+    }
+  }, []);
   const [globalCooperative, setGlobalCooperative] = useState<Product[]>([]);
   const [globalAdditional, setGlobalAdditional] = useState<Product[]>([]);
   const [componentProducts, setComponentProducts] = useState<Product[]>([]);
@@ -679,8 +690,48 @@ export const ProductDetailPage: React.FC = () => {
   const [productOptionSetQuantity, setProductOptionSetQuantity] = useState(1);
   const [combinationSets, setCombinationSets] = useState<Array<{ id: string; selections: Record<string, string>; quantity: number; price: number }>>([]);
   const [combinationQuantityDrafts, setCombinationQuantityDrafts] = useState<Record<string, string>>({});
+  const [basicComponentQuantities, setBasicComponentQuantities] = useState<Record<string, number>>({});
 
+  useEffect(() => {
+    if (product?.basic_components) {
+      const initial: Record<string, number> = {};
+      product.basic_components.forEach(comp => {
+        initial[comp.name] = comp.quantity;
+      });
+      setBasicComponentQuantities(initial);
+    }
+  }, [product]);
 
+  const handleUpdateBasicComponentQuantity = (name: string, delta: number) => {
+    setBasicComponentQuantities(prev => {
+      const current = prev[name] ?? 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, [name]: next };
+    });
+  };
+
+  const [basicComponentQuantityDrafts, setBasicComponentQuantityDrafts] = useState<Record<string, string>>({});
+
+  const handleBasicComponentQuantityInputChange = (name: string, rawValue: string) => {
+    if (!/^\d*$/.test(rawValue)) return;
+    setBasicComponentQuantityDrafts(prev => ({ ...prev, [name]: rawValue }));
+    if (rawValue !== "") {
+      const nextQuantity = parseInt(rawValue, 10);
+      setBasicComponentQuantities(prev => ({ ...prev, [name]: nextQuantity }));
+    }
+  };
+
+  const handleBasicComponentQuantityInputBlur = (name: string, fallbackQuantity: number) => {
+    const draftValue = basicComponentQuantityDrafts[name];
+    if (draftValue === undefined) return;
+    const nextQuantity = draftValue === "" ? fallbackQuantity : Math.max(0, parseInt(draftValue, 10) || 0);
+    setBasicComponentQuantities(prev => ({ ...prev, [name]: nextQuantity }));
+    setBasicComponentQuantityDrafts(prev => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
   useEffect(() => {
     const fetchProductAndOptions = async () => {
       if (!id) return;
@@ -722,6 +773,45 @@ export const ProductDetailPage: React.FC = () => {
       category: product.category,
       value: typeof product.price === "number" ? product.price : undefined,
     });
+  }, [product]);
+
+  // 패키지 상품일 경우, 첫 번째 옵션 그룹의 항목들을 자동으로 조합 세트(CombinationSets)에 채워넣는 로직
+  useEffect(() => {
+    if (!product || product.catalog_type !== 'package') return;
+    
+    const optionGroups = product.product_options || [];
+    if (optionGroups.length === 0) return;
+    
+    const selectionMode = getProductOptionSelectionMode(optionGroups);
+    if (selectionMode !== 'combination') return;
+
+    const firstGroup = optionGroups[0];
+    if (!firstGroup || !firstGroup.values) return;
+
+    // 첫 번째 그룹 외 다른 그룹이 있다면 첫 번째 값을 기본값으로 사용
+    const defaultOtherSelections: Record<string, string> = {};
+    for (let i = 1; i < optionGroups.length; i++) {
+      if (optionGroups[i].values.length > 0) {
+        defaultOtherSelections[optionGroups[i].name] = optionGroups[i].values[0].name;
+      }
+    }
+
+    const initialSets = firstGroup.values.map(val => {
+      const selections = {
+        [firstGroup.name]: val.name,
+        ...defaultOtherSelections
+      };
+      const setId = optionGroups.map(g => selections[g.name]).join(' / ');
+      return {
+        id: setId,
+        selections,
+        quantity: 1, // 기본 수량 1개
+        price: 0
+      };
+    });
+
+    // 기존에 선택된 세트가 없을 때만 자동 세팅 (뒤로가기 등 상태 유지 대비)
+    setCombinationSets(prev => prev.length === 0 ? initialSets : prev);
   }, [product]);
 
   const selectedAdditionalItems = React.useMemo(() => getSelectedProductOptions(selectedAdditional, globalAdditional), [selectedAdditional, globalAdditional]);
@@ -780,7 +870,11 @@ export const ProductDetailPage: React.FC = () => {
     ...selectedCooperativeItems.map(({ product: item, quantity }) => ({ name: item.name, quantity, price: item.price || 0 })),
   ];
 
-  const buildBasicComponents = () => product?.basic_components?.map((comp) => ({ name: comp.name, quantity: comp.quantity, model_name: comp.model_name })) || [];
+  const buildBasicComponents = () => product?.basic_components?.map((comp) => ({ 
+    name: comp.name, 
+    quantity: basicComponentQuantities[comp.name] ?? comp.quantity, 
+    model_name: comp.model_name 
+  })).filter(c => c.quantity > 0) || [];
 
   
   
@@ -874,7 +968,7 @@ export const ProductDetailPage: React.FC = () => {
     addQuoteCartItem({ product_id: id, product_name: product.name, product_image_url: product.image_url, product_catalog_type: product.catalog_type || "general", expected_people: isCombinationOptionMode ? requestedQuantity : isPackageProduct ? 0 : typeof expectedPeople === "string" ? parseInt(expectedPeople || "0", 10) || 0 : expectedPeople, product_quantity: requestedQuantity, selected: true, option_quantity_managed: hasProductOptions && !isCombinationOptionMode, option_selection_mode: hasProductOptions ? productOptionSelectionMode : undefined, total_price: totalPrice, selected_options: buildSelectedOptions(), basic_components: buildBasicComponents() });
     setQuoteCartCount(getQuoteCartCount());
     logAnalyticsEvent("quote_cart_add", { source: "product_detail", product_id: id, product_name: product.name, value: totalPrice });
-    if (showSuccessModal) setBookingModal({ show: true, message: "장바구니에 담겼습니다.\n견적 요청 또는 추가 옵션\n확인을 위해\n장바구니에서\n수량을 조절하실 수 있습니다.", type: "success", variant: "cart" });
+    if (showSuccessModal) setBookingModal({ show: true, message: "장바구니에 담겼습니다.\n추가 옵션 및 수량 확인 후 견적을 요청할 수 있습니다.", type: "success", variant: "cart" });
   };
 
   const handleBooking = () => { if (!product || !id) return; setIsBooking(true); handleAddToQuoteCart({ showSuccessModal: false }); navigate("/quote-cart"); setIsBooking(false); };
@@ -918,21 +1012,7 @@ export const ProductDetailPage: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-8 lg:gap-10">
             <div className="lg:col-span-7 xl:col-span-8 lg:row-start-1 space-y-8">
-              <section className="overflow-hidden rounded-[24px] lg:rounded-[28px] border border-gray-100 bg-white shadow-sm flex flex-col">
-                <div className="p-6 sm:p-8 sm:pb-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">{product.category}</span>
-                    <span className="rounded-full border border-[#001E45]/10 bg-[#001E45]/5 px-3 py-1 text-xs font-medium text-[#001E45]">맞춤 견적형 상품</span>
-                  </div>
-                  <div className="mt-4">
-                    <h1 className="text-2xl font-bold leading-tight text-gray-900 xl:text-[32px]">{product.name}</h1>
-                    <p className="mt-3 text-[15px] leading-relaxed text-slate-500 break-keep">{product.short_description || "일정과 수량을 접수하면 담당자가 렌탈 조건을 안내해 드립니다."}</p>
-                  </div>
-                </div>
-                <div className="flex w-full items-center justify-center p-6 sm:px-10 sm:pb-10 sm:pt-4">
-                  <img src={product.image_url || "https://picsum.photos/seed/product/800/600"} alt={product.name} className="block h-[240px] sm:h-[320px] lg:h-[380px] w-auto object-contain rounded-xl mx-auto" />
-                </div>
-              </section>
+              <ProductDetailHero product={product} />
 
               {product.basic_components && product.basic_components.length > 0 && (
                 <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-100">
@@ -949,16 +1029,64 @@ export const ProductDetailPage: React.FC = () => {
                     <div className="space-y-0 mt-4 border-t border-gray-100 pt-2">
                       {product.basic_components.map((item, idx) => {
                         const imageUrl = item.image_url || componentProducts.find((p) => p.name === item.name)?.image_url || getComponentComponentImage(item.name);
+                        
+                        const currentQtyText = basicComponentQuantityDrafts[item.name] ?? String(basicComponentQuantities[item.name] ?? item.quantity);
+                        const currentQty = currentQtyText === "" ? 0 : parseInt(currentQtyText as string, 10);
+                        const isExcluded = currentQty === 0;
+
                         return (
-                          <div key={idx} className="flex items-center gap-4 py-4 border-b border-dashed border-gray-200 last:border-0 hover:bg-gray-50/50 transition-colors rounded-xl px-2 -mx-2">
+                          <div key={idx} className={`flex items-center gap-4 py-4 border-b border-dashed border-gray-200 last:border-0 transition-all rounded-xl px-2 -mx-2 ${isExcluded ? 'opacity-60 grayscale bg-gray-50' : 'hover:bg-gray-50/50'}`}>
                             <div className="w-16 h-16 flex-shrink-0 rounded-xl bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden relative">
                               {imageUrl ? <img src={imageUrl} alt={item.name} className="w-full h-full object-cover" /> : <Package size={24} className="text-slate-400" />}
                             </div>
                             <div className="flex-1">
-                              <p className="font-semibold text-gray-900 text-[15px]">{item.name}</p>
-                              {item.model_name && <p className="text-[13px] text-gray-400 mt-1">{item.model_name}</p>}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className={`font-semibold text-[13.5px] sm:text-[15px] leading-tight break-keep ${isExcluded ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.name}</p>
+                                {isExcluded && <span className="inline-flex items-center text-[11px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">제외됨</span>}
+                              </div>
+                              {item.model_name && <p className={`text-[13px] mt-1 ${isExcluded ? 'text-gray-300' : 'text-gray-400'}`}>{item.model_name}</p>}
                             </div>
-                            <span className="font-bold text-[#001E45] bg-[#001E45]/5 px-3 py-1.5 rounded-lg text-sm">{item.quantity}개</span>
+                            <div className="flex items-center gap-2">
+                              <div className={`flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 ${isExcluded ? 'opacity-70' : ''}`}>
+                                <button 
+                                  onClick={() => handleUpdateBasicComponentQuantity(item.name, -1)}
+                                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <input 
+                                  type="text"
+                                  value={currentQtyText}
+                                  onChange={(e) => handleBasicComponentQuantityInputChange(item.name, e.target.value)}
+                                  onBlur={() => handleBasicComponentQuantityInputBlur(item.name, item.quantity)}
+                                  className="w-8 text-center text-[13px] font-bold text-gray-900 bg-transparent outline-none focus:bg-slate-50 rounded"
+                                />
+                                <button 
+                                  onClick={() => handleUpdateBasicComponentQuantity(item.name, 1)}
+                                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  if (isExcluded) {
+                                    setBasicComponentQuantities(prev => ({ ...prev, [item.name]: item.quantity }));
+                                  } else {
+                                    setBasicComponentQuantities(prev => ({ ...prev, [item.name]: 0 }));
+                                  }
+                                  setBasicComponentQuantityDrafts(prev => {
+                                    const next = { ...prev };
+                                    delete next[item.name];
+                                    return next;
+                                  });
+                                }}
+                                className={`flex h-[38px] px-3 items-center justify-center rounded-lg border transition-all gap-1 text-[13px] font-bold ${isExcluded ? 'bg-rose-500 border-rose-500 text-white shadow-sm hover:bg-rose-600' : 'border-slate-200 bg-white text-slate-400 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-500'}`}
+                                title={isExcluded ? "원래 수량으로 복구하기" : "구성품 제외 (수량 0으로 변경)"}
+                              >
+                                {isExcluded ? "복구" : <X size={16} />}
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -1110,8 +1238,11 @@ export const ProductDetailPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                    <span className="font-medium text-gray-600 text-[13px]">예상 견적 비용</span>
+                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-end">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-gray-600 text-[13px]">예상 견적 비용</span>
+                      <span className="text-[11px] text-teal-600 font-medium mt-0.5">※ 1일 기준 단가 (장기/대량 렌탈 시 특별 할인)</span>
+                    </div>
                     <span className={getPublicPriceClassName({
                       mode: priceDisplayMode,
                       loading: priceDisplayLoading,
@@ -1139,7 +1270,11 @@ export const ProductDetailPage: React.FC = () => {
                   </div>
 
                   <p className="mt-6 text-[12px] text-center text-gray-400 leading-relaxed">
-                    최종 견적 요청 시 영업일 기준 담당자가 연락드립니다.
+                    최종 견적 요청 시 영업일 기준 담당자가 연락드립니다.<br/>
+                    <span className="inline-flex items-center gap-1 text-[#001E45] font-medium mt-1 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                      <FileText size={12} />
+                      장바구니에서 상세 견적서(PDF) 출력이 가능합니다.
+                    </span>
                   </p>
                 </div>
               </div>
@@ -1195,6 +1330,7 @@ export const ProductDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
+          <RelatedProducts product={product} />
         </Container>
       </div>
 
@@ -1206,10 +1342,27 @@ export const ProductDetailPage: React.FC = () => {
           <div className="px-6 pb-8 max-h-[70vh] overflow-y-auto">
             <div className="flex items-center gap-2 mb-4"><ShoppingBag size={20} className="text-[#001E45]" /><h3 className="font-bold text-lg text-gray-900">견적 요청 요약</h3></div>
             <SummaryRows rows={displaySummaryRows} />
-            {selectedSummary.length > 0 && <SelectedOptionsSection items={selectedSummary} priceDisplayMode={priceDisplayMode} priceDisplayLoading={priceDisplayLoading} />}
+            
+            {buildBasicComponents().length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                <p className="text-xs font-bold text-gray-500 mb-1">기본 구성품</p>
+                {buildBasicComponents().map((comp, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-[13px] text-gray-700">
+                    <span className="truncate flex-1 pr-4">- {comp.name}</span>
+                    <span className="font-semibold flex-shrink-0">{comp.quantity}개</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedSummary.length > 0 && (
+              <div className="mt-4">
+                <SelectedOptionsSection items={selectedSummary} priceDisplayMode={priceDisplayMode} priceDisplayLoading={priceDisplayLoading} />
+              </div>
+            )}
             <div className="mt-6 space-y-3">
               <button onClick={() => openActionConfirm('booking')} className="w-full py-4 rounded-xl bg-[#001E45] text-white font-bold flex items-center justify-center gap-2 shadow-lg">견적 요청하기</button>
-              <button onClick={() => openActionConfirm('cart')} className="w-full py-4 rounded-xl border border-[#001E45] text-[#001E45] font-bold bg-white flex items-center justify-center gap-2">장바구니 담기 ({quoteCartCount})</button>
+              <button onClick={() => handleAddToQuoteCart()} className="w-full py-4 rounded-xl border border-[#001E45] text-[#001E45] font-bold bg-white flex items-center justify-center gap-2 transition-all hover:bg-slate-50">장바구니 담기</button>
             </div>
           </div>
         ) : (
@@ -1225,10 +1378,25 @@ export const ProductDetailPage: React.FC = () => {
           <div className="bg-white rounded-[28px] max-w-lg w-full overflow-hidden shadow-2xl animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
             <div className="p-8 text-center border-b border-gray-100"><h2 className="text-xl font-bold text-gray-900">{actionConfirmModal.action === 'booking' ? '견적 요청' : '장바구니 담기'}</h2><p className="mt-1 text-sm text-gray-500">선택하신 구성으로 진행하시겠습니까?</p></div>
             <div className="p-8 space-y-6">
-              <div className="rounded-2xl bg-gray-50 p-5 space-y-4">
+              <div className="rounded-2xl bg-gray-50 p-5 space-y-4 text-left">
                 <SummaryRows rows={displaySummaryRows} />
+                
+                {buildBasicComponents().length > 0 && (
+                  <div className="space-y-1.5 pt-2">
+                    <p className="text-xs font-bold text-gray-500 mb-1">기본 구성품</p>
+                    {buildBasicComponents().map((comp, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-[13px] text-gray-700">
+                        <span className="truncate flex-1 pr-4">- {comp.name}</span>
+                        <span className="font-semibold flex-shrink-0">{comp.quantity}개</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {selectedSummary.length > 0 && <SelectedOptionsSection items={selectedSummary} priceDisplayMode={priceDisplayMode} priceDisplayLoading={priceDisplayLoading} />}
-                <div className="pt-4 border-t border-gray-200 flex items-center justify-between font-bold text-lg"><span className="text-gray-900">예상 견적</span><span className="text-[#001E45]">{totalPriceText}</span></div>
+                {!priceDisplayLoading && isVisiblePriceMode(priceDisplayMode) && (
+                  <div className="pt-4 border-t border-gray-200 flex items-center justify-between font-bold text-lg"><span className="text-gray-900">예상 견적</span><span className="text-[#001E45]">{totalPriceText}</span></div>
+                )}
               </div>
             </div>
             <div className="flex gap-3 p-8 pt-0">
@@ -1242,15 +1410,39 @@ export const ProductDetailPage: React.FC = () => {
       {bookingModal.show && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setBookingModal(prev => ({ ...prev, show: false }))}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-[380px] p-10 text-center animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6 flex justify-center">{bookingModal.type === 'success' ? <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center"><CheckCircle size={36} className="text-emerald-500" /></div> : <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center"><AlertCircle size={36} className="text-blue-500" /></div>}</div>
-            <p className="text-gray-900 font-bold text-lg whitespace-pre-line mb-8">{bookingModal.message}</p>
-            {bookingModal.variant === 'cart' ? (
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setBookingModal(prev => ({ ...prev, show: false }))} className="py-4 rounded-xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200">계속 쇼핑</button>
-                <button onClick={() => { setBookingModal(prev => ({ ...prev, show: false })); navigate('/quote-cart'); }} className="py-4 rounded-xl bg-[#001E45] text-white font-bold shadow-md">장바구니 이동</button>
-              </div>
-            ) : <button onClick={() => setBookingModal(prev => ({ ...prev, show: false }))} className="w-full py-4 bg-[#001E45] text-white font-bold rounded-xl shadow-md">확인</button>}
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-[420px] p-8 text-center animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            {bookingModal.type === 'success' && bookingModal.variant === 'cart' ? (
+              <>
+                <div className="mb-5 flex justify-center">
+                  <div className="w-16 h-16 bg-[#001E45]/5 rounded-full flex items-center justify-center">
+                    <ShoppingBag size={32} className="text-[#001E45]" />
+                  </div>
+                </div>
+                <h3 className="text-[20px] font-black text-gray-900 mb-4 tracking-tight">장바구니에 담겼습니다</h3>
+                <div className="bg-gray-50 rounded-xl p-5 mb-8 text-left border border-gray-100">
+                  <p className="text-[14px] font-bold text-gray-800 line-clamp-2 leading-snug">{product?.name}</p>
+                  <div className="mt-3 flex items-center gap-2 text-[13px] text-gray-600">
+                    <span className="bg-white px-2 py-1 rounded-md border border-gray-200 font-medium">수량 {requestedQuantity}개</span>
+                    <span>포함 선택된 구성품 담김</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => setBookingModal(prev => ({ ...prev, show: false }))} className="py-4 rounded-xl bg-white border-2 border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-colors">계속 쇼핑</button>
+                  <button onClick={() => { setBookingModal(prev => ({ ...prev, show: false })); navigate('/quote-cart'); }} className="py-4 rounded-xl bg-[#001E45] text-white font-bold shadow-md hover:bg-[#001430] transition-colors">장바구니 확인</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-6 flex justify-center">{bookingModal.type === 'success' ? <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center"><CheckCircle size={36} className="text-emerald-500" /></div> : <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center"><AlertCircle size={36} className="text-blue-500" /></div>}</div>
+                <p className="text-gray-900 font-bold text-[16px] leading-relaxed whitespace-pre-line mb-8">{bookingModal.message}</p>
+                {bookingModal.variant === 'cart' ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => setBookingModal(prev => ({ ...prev, show: false }))} className="py-4 rounded-xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200">계속 쇼핑</button>
+                    <button onClick={() => { setBookingModal(prev => ({ ...prev, show: false })); navigate('/quote-cart'); }} className="py-4 rounded-xl bg-[#001E45] text-white font-bold shadow-md">장바구니 이동</button>
+                  </div>
+                ) : <button onClick={() => setBookingModal(prev => ({ ...prev, show: false }))} className="w-full py-4 bg-[#001E45] text-white font-bold rounded-xl shadow-md">확인</button>}
+              </>
+            )}
           </div>
         </div>
       )}

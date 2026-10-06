@@ -285,7 +285,7 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="w-full bg-white">
+    <header className="w-full bg-white sticky top-0 z-[100] transition-all duration-300">
       <div className={`w-full bg-white ${location.pathname === '/' ? '' : 'border-b border-gray-200 shadow-sm'}`}>
         {/* Top Utility Links - Premium Subtle Style */}
         <div className="hidden md:block bg-[#F8F9FA] border-b border-gray-100 py-2">
@@ -361,7 +361,7 @@ export const Header: React.FC = () => {
         </div>
 
         {/* Main Header Area */}
-        <div className="h-[72px] bg-white border-b border-gray-100 shadow-sm md:bg-white/80 md:shadow-none md:backdrop-blur-md relative z-50">
+        <div className="h-[54px] md:h-[72px] bg-white border-b border-gray-100 shadow-sm md:bg-white/80 md:shadow-none md:backdrop-blur-md relative z-50 transition-all duration-300">
           <Container className="h-full">
             <div className="h-full flex items-center justify-between gap-4 md:gap-8">
               {/* Logo and Subtitle */}
@@ -373,7 +373,7 @@ export const Header: React.FC = () => {
                 <img
                   src="/logo.png"
                   alt="렌탈어때"
-                  className="h-[2.5rem] md:h-[2.8rem] object-contain"
+                  className="h-[1.8rem] md:h-[2.0rem] object-contain"
                 />
               </Link>
 
@@ -381,23 +381,27 @@ export const Header: React.FC = () => {
 
               {/* Right Aligned Area: Search + Actions */}
               <div className="flex items-center gap-1 md:gap-6 justify-end">
-                {/* Search Bar (Responsive for both Mobile and Desktop) */}
-                <div className="flex flex-1 md:flex-none relative group max-w-[200px] sm:max-w-[250px] md:max-w-none md:w-[320px]">
+                {/* Search Bar (Desktop only, mobile relies on BottomNav) */}
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const target = e.currentTarget.elements.namedItem('q') as HTMLInputElement;
+                    if (target?.value.trim()) {
+                      navigate(`/search?q=${encodeURIComponent(target.value.trim())}`);
+                    }
+                  }}
+                  className="hidden md:flex flex-none relative group w-[320px]"
+                >
                   <input
+                    name="q"
                     type="text"
                     placeholder="무엇을 도와드릴까요?"
                     className="w-full h-[40px] md:h-[44px] pl-6 pr-12 rounded-full bg-[#f4f7fa] border-none focus:ring-2 focus:ring-slate-200 focus:bg-white transition-all text-[14px] md:text-sm text-slate-700 placeholder-slate-400/80 text-ellipsis overflow-hidden whitespace-nowrap"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const target = e.target as HTMLInputElement;
-                        if (target.value.trim()) {
-                          navigate(`/search?q=${encodeURIComponent(target.value.trim())}`);
-                        }
-                      }
-                    }}
                   />
-                  <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 md:w-5 md:h-5" />
-                </div>
+                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#001E45] transition-colors">
+                    <Search className="w-4 h-4 md:w-5 md:h-5" />
+                  </button>
+                </form>
 
                 {/* Actions (Both Mobile & Desktop) */}
                 <div className="flex items-center gap-0 relative z-50">
@@ -428,10 +432,10 @@ export const Header: React.FC = () => {
           </Container>
         </div>
 
-        {/* Premium GNB - Centered and Generous Spacing */}
-        <div className={`border-t ${location.pathname === '/' ? '' : 'border-b'} border-gray-100 relative bg-white z-40`}>
+        {/* Premium GNB - Horizontal Scroll on Mobile, Centered on Desktop */}
+        <div className={`block border-t ${location.pathname === '/' ? '' : 'border-b'} border-gray-100 relative bg-white z-40`}>
           <Container>
-            <div className="relative flex justify-start w-full h-[56px]">
+            <div className="relative flex justify-start w-full h-[44px] md:h-[56px] transition-all duration-300">
               <nav className="flex h-full items-stretch justify-start gap-1 min-[375px]:gap-2 sm:gap-6 md:gap-2 w-max min-w-full md:w-auto overflow-x-auto md:overflow-visible no-scrollbar scroll-smooth snap-x md:-ml-4 px-0">
                 <div
                   className="hidden md:block h-full"
@@ -439,6 +443,7 @@ export const Header: React.FC = () => {
                   onMouseLeave={() => setShowDesktopMenu(false)}
                 >
                   <button
+                    onClick={() => { setShowDesktopMenu(false); navigate("/products"); }}
                     className={`relative flex h-full items-center gap-2 whitespace-nowrap text-[15px] font-[550] px-4 transition-all after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 md:after:-bottom-[2px] after:h-[2px] after:transition-colors ${showDesktopMenu ? "text-[#001E45] after:bg-[#001E45]" : "text-gray-600 hover:text-[#001E45] after:bg-transparent hover:after:bg-[#001E45]"}`}
                   >
                     <MenuIcon className="w-6 h-6" /> 전체 메뉴
