@@ -226,8 +226,10 @@ const productSeoDescription = (product) =>
   seoDescription(product.short_description, product.description) ||
   `${product.name} 렌탈 서비스입니다. 렌탈어때에서 합리적인 조건으로 상담받아보세요.`;
 
+// 본문이 이미지뿐인 글(설치후기 등)은 요약 → 본문 텍스트 순으로 쓰고, 둘 다 없으면 제목을 넣어 글마다 다른 설명문이 되게 한다.
 const postSeoDescription = (post, sectionTitle) =>
-  seoDescription(postPlainText(post.content)) || `${sectionTitle} 상세 페이지입니다.`;
+  seoDescription(post.summary, postPlainText(post.content)) ||
+  `${post.title} ${sectionTitle} 상세 페이지입니다. 렌탈어때의 ${sectionTitle} 사례를 확인해 보세요.`;
 
 const genericBody = (title, description) => `
       <main class="mx-auto max-w-4xl px-4 py-12 md:px-6 md:py-16">
