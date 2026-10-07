@@ -113,7 +113,7 @@ const normalizeProductOptions = (groups: ProductOptionGroup[] = []): ProductOpti
     groups
         .map((group) => ({
             name: group.name.trim(),
-            selection_mode: group.selection_mode === 'combination' ? 'combination' : 'independent',
+            selection_mode: (group.selection_mode === 'combination' ? 'combination' : 'independent') as ProductOptionSelectionMode,
             values: (group.values || [])
                 .map((value) => ({ name: value.name.trim() }))
                 .filter((value) => value.name),

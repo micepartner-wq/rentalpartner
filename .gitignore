@@ -43,3 +43,7 @@ coverage/
 
 # Windows
 desktop.ini
+
+# Local recovery backups
+backups/
+.vite-dev.err.log

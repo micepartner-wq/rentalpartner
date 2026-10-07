@@ -18,6 +18,7 @@ export interface Product {
     id?: string;
     name: string;
     category?: string;
+    category_id?: string | null;
     _parent_category?: string;
     price: number;
     description?: string;
@@ -29,7 +30,7 @@ export interface Product {
     catalog_type?: ProductCatalogType;
     product_code?: string;
     product_type?: 'basic' | 'essential' | 'additional' | 'cooperative' | 'place' | 'food';
-    basic_components?: { name: string; model_name?: string; quantity: number }[];
+    basic_components?: { name: string; model_name?: string; quantity: number; image_url?: string }[];
     additional_components?: { name: string; model_name?: string; price: number; _category?: string }[];
     cooperative_components?: { name: string; model_name?: string; price: number; _category?: string }[];
     place_components?: { name: string; price: number }[];
