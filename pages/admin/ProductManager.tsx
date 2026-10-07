@@ -284,9 +284,19 @@ export const ProductManager = () => {
         try {
             const clean = (arr: any[]) => (arr || []).filter(i => i.name).map(({ _category, ...rest }) => rest);
             const isPackageProduct = formData.catalog_type === 'package' && formData.product_type === 'basic';
+            const categoryName = getNormalizedCategoryName(formData.category);
+            // 같은 이름의 카테고리가 하나뿐일 때만 id 로 연결한다. 부가서비스 등은 categories 테이블 소속이 아니므로 비운다.
+            const matchedCategories = isBasicProductEditor
+                ? productCategories.filter((category) => category.name.trim() === categoryName)
+                : [];
             const data = {
                 ...formData,
-                category: getNormalizedCategoryName(formData.category),
+                category: categoryName,
+                // 일치하는 카테고리가 없으면(이름이 바뀐 옛 이름 등) 기존 연결을 지우지 않고 유지한다.
+                category_id:
+                    matchedCategories.length === 1
+                        ? matchedCategories[0].id ?? null
+                        : editingProduct?.category_id ?? null,
                 basic_components: isPackageProduct ? clean(formData.basic_components) : [],
                 cooperative_components: isPackageProduct ? clean(formData.cooperative_components) : [],
                 additional_components: isPackageProduct ? clean(formData.additional_components) : [],
