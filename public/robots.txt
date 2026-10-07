@@ -1,6 +1,17 @@
 User-agent: *
 Allow: /
+Allow: /products/package
+Allow: /products/office
+Allow: /products/it
+Allow: /products/appliance-furniture
+Allow: /products/tv
+Allow: /products/lighting
 Disallow: /admin/
 Disallow: /mypage/
+Disallow: /quote-cart
+Disallow: /quote-request
+Disallow: /login
+Disallow: /signup
+Disallow: /p/
 
 Sitemap: https://rentalpartner.kr/sitemap.xml

@@ -5,6 +5,7 @@ import {
 import {
     getCategories, addCategory, updateCategory, deleteCategory, Category, CategoryTree, buildCategoryTree
 } from '../../src/api/categoryApi';
+import { createCategorySlug } from '../../src/utils/productCategoryRouting';
 
 const LEVEL_LABELS: { [key: number]: string } = {
     1: '대분류',
@@ -26,6 +27,7 @@ export const CategoryManager: React.FC = () => {
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [formData, setFormData] = useState({
         name: '',
+        slug: '',
         display_order: 0,
         parent_id: null as string | null,
         level: 1
@@ -65,6 +67,7 @@ export const CategoryManager: React.FC = () => {
         setEditingCategory(null);
         setFormData({
             name: '',
+            slug: '',
             display_order: categories.filter(c => c.parent_id === parentId).length + 1,
             parent_id: parentId,
             level: level
@@ -76,6 +79,7 @@ export const CategoryManager: React.FC = () => {
         setEditingCategory(category);
         setFormData({
             name: category.name,
+            slug: category.slug || '',
             display_order: category.display_order,
             parent_id: category.parent_id || null,
             level: category.level || 1
@@ -92,11 +96,13 @@ export const CategoryManager: React.FC = () => {
             if (editingCategory) {
                 await updateCategory(editingCategory.id!, {
                     name: formData.name,
+                    slug: formData.slug.trim() || createCategorySlug(formData.name),
                     display_order: formData.display_order
                 });
             } else {
                 await addCategory({
                     name: formData.name,
+                    slug: formData.slug.trim() || createCategorySlug(formData.name),
                     display_order: formData.display_order,
                     parent_id: formData.parent_id,
                     level: formData.level
@@ -297,6 +303,22 @@ export const CategoryManager: React.FC = () => {
                                     required
                                     autoFocus
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    URL slug
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.slug}
+                                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                                    placeholder={createCategorySlug(formData.name || 'category-name')}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#001E45]"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                    비워두면 이름 기준으로 자동 생성됩니다.
+                                </p>
                             </div>
 
                             <div>

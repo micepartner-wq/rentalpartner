@@ -157,7 +157,7 @@ export const HomeFeaturedCategorySection: React.FC = () => {
               <Link
                 key={product.id || `${product.name}-${index}`}
                 to={`/products/${product.id}`}
-                className="group relative aspect-[16/9] w-[330px] md:w-[calc(50%_-_0.6rem)] overflow-hidden block rounded-2xl cursor-pointer snap-start flex-shrink-0 bg-slate-100 shadow-sm border border-slate-100"
+                className="group relative aspect-[16/9] w-[85vw] max-w-[340px] md:max-w-none md:w-[calc(50%_-_0.6rem)] overflow-hidden block rounded-2xl cursor-pointer snap-start flex-shrink-0 bg-slate-100 shadow-sm border border-slate-100"
               >
                 {product.image_url ? (
                   <div className="w-full h-full bg-white">
