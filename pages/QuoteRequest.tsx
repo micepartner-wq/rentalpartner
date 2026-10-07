@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle, FileText, Loader2 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
@@ -74,6 +74,9 @@ export const QuoteRequestPage: React.FC = () => {
   const [requestNote, setRequestNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  const getErrorClass = (val: string) => hasAttemptedSubmit && !val.trim() ? "border-red-500 bg-red-50" : "border-slate-300";
 
   useEffect(() => {
     const cartItems = getQuoteCartItems();
@@ -106,6 +109,8 @@ export const QuoteRequestPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
+    setHasAttemptedSubmit(true);
+
     if (items.length === 0) {
       alert("견적 요청할 상품을 선택해 주세요.");
       navigate("/quote-cart");
@@ -120,7 +125,7 @@ export const QuoteRequestPage: React.FC = () => {
       !customerEmail.trim() ||
       !installationPlace.trim()
     ) {
-      alert("고객명, 회사명, 연락처, 이메일, 사용 기간, 설치 장소를 입력해 주세요.");
+      alert("필수 입력 항목(고객명, 회사명, 연락처, 이메일, 사용 기간, 설치 장소)을 확인해 주세요.");
       return;
     }
     if (new Date(startDate) > new Date(endDate)) {
@@ -235,13 +240,13 @@ export const QuoteRequestPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
+    <div className="min-h-screen bg-slate-50 pt-10 pb-28 md:pb-10">
       <Helmet>
         <title>견적 요청 정보 입력 | 렌탈파트너</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <Container>
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-7xl">
           <div className="mb-6">
             <Link to="/quote-cart" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-[#001E45]">
               <ArrowLeft size={16} /> 장바구니로 돌아가기
@@ -259,7 +264,7 @@ export const QuoteRequestPage: React.FC = () => {
               </Link>
             </div>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            <div className="grid gap-10 lg:grid-cols-[1fr_480px]">
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
                 <h2 className="mb-4 text-lg font-semibold text-slate-900">요청 상품</h2>
                 <div className="space-y-3">
@@ -307,33 +312,38 @@ export const QuoteRequestPage: React.FC = () => {
                   <label className="block">
                     <span className="text-sm font-medium text-slate-700">사용 기간</span>
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-                      <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={`w-full rounded-lg border px-3 py-2 text-sm ${hasAttemptedSubmit && !startDate ? 'border-red-500 bg-red-50' : 'border-slate-300'}`} />
+                      <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={`w-full rounded-lg border px-3 py-2 text-sm ${hasAttemptedSubmit && !endDate ? 'border-red-500 bg-red-50' : 'border-slate-300'}`} />
                     </div>
                   </label>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-700">고객명</span>
-                      <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="예: 홍길동" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                      <span className="text-sm font-medium text-slate-700">고객명 <span className="text-red-500">*</span></span>
+                      <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="예: 홍길동" className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(customerName)}`} />
+                      {hasAttemptedSubmit && !customerName.trim() && <p className="mt-1 text-xs text-red-500">고객명을 입력해주세요.</p>}
                     </label>
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-700">연락처</span>
-                      <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="예: 010-1234-5678" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                      <span className="text-sm font-medium text-slate-700">연락처 <span className="text-red-500">*</span></span>
+                      <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="예: 010-1234-5678" className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(contactPhone)}`} />
+                      {hasAttemptedSubmit && !contactPhone.trim() && <p className="mt-1 text-xs text-red-500">연락처를 입력해주세요.</p>}
                     </label>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-700">회사명/업체명</span>
-                      <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="예: 휴먼파트너" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                      <span className="text-sm font-medium text-slate-700">회사명/업체명 <span className="text-red-500">*</span></span>
+                      <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="예: 휴먼파트너" className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(companyName)}`} />
+                      {hasAttemptedSubmit && !companyName.trim() && <p className="mt-1 text-xs text-red-500">회사명을 입력해주세요.</p>}
                     </label>
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-700">이메일</span>
-                      <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="예: hello@example.com" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                      <span className="text-sm font-medium text-slate-700">이메일 <span className="text-red-500">*</span></span>
+                      <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="예: hello@example.com" className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(customerEmail)}`} />
+                      {hasAttemptedSubmit && !customerEmail.trim() && <p className="mt-1 text-xs text-red-500">이메일을 입력해주세요.</p>}
                     </label>
                   </div>
                   <label className="block">
-                    <span className="text-sm font-medium text-slate-700">설치 장소</span>
-                    <input value={installationPlace} onChange={(e) => setInstallationPlace(e.target.value)} placeholder="예: 서울 강남구 테헤란로 00, 5층 회의실" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                    <span className="text-sm font-medium text-slate-700">설치 장소 <span className="text-red-500">*</span></span>
+                    <input value={installationPlace} onChange={(e) => setInstallationPlace(e.target.value)} placeholder="예: 서울 강남구 테헤란로 00, 5층 회의실" className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(installationPlace)}`} />
+                    {hasAttemptedSubmit && !installationPlace.trim() && <p className="mt-1 text-xs text-red-500">설치 장소를 입력해주세요.</p>}
                   </label>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">

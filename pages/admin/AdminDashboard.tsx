@@ -19,7 +19,6 @@ export const AdminDashboard = () => {
         { path: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
         { path: '/admin/cms', label: 'CMS 관리', icon: Settings },
         { path: '/admin/sections', label: '섹션 관리', icon: Layers },
-        // Category management removed as per request
         { path: '/admin/products', label: '상품 관리', icon: Package },
         { path: '/admin/rental-requests', label: '견적 요청 관리', icon: CalendarCheck },
         { path: '/admin/users', label: '회원 관리', icon: Users },

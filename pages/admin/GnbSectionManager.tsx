@@ -43,6 +43,7 @@ interface FormData {
     board_type: BoardPostType;
     category: string;
     title: string;
+    summary: string;
     content: string;
     image_url: string;
     link: string;
@@ -61,6 +62,7 @@ const EMPTY_FORM: FormData = {
     board_type: 'notice',
     category: '',
     title: '',
+    summary: '',
     content: '',
     image_url: '',
     link: '',
@@ -297,6 +299,7 @@ export const GnbSectionManager = () => {
             board_type: post.board_type,
             category: nextCategory,
             title: post.title || '',
+            summary: post.summary || '',
             content: post.content || '',
             image_url: post.image_url || post.mobile_image_url || '',
             link: post.link || '',
@@ -319,7 +322,7 @@ export const GnbSectionManager = () => {
             board_type: formData.board_type,
             category: formData.board_type === 'event' ? '' : formData.category,
             title: formData.title,
-            summary: '',
+            summary: formData.summary,
             content: formData.content,
             image_url: formData.image_url,
             link: formData.link,
@@ -1027,6 +1030,20 @@ export const GnbSectionManager = () => {
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">한줄 요약</label>
+                                <textarea
+                                    value={formData.summary}
+                                    onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                                    className="w-full min-h-[96px] px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45] text-sm"
+                                    placeholder="리스트 카드에 노출할 1~2문장 요약"
+                                    maxLength={240}
+                                />
+                                <p className="mt-1 text-right text-xs text-slate-400">
+                                    {formData.summary.length}/240
+                                </p>
                             </div>
 
                             <div>

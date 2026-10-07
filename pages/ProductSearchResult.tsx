@@ -71,9 +71,9 @@ export const ProductSearchResult: React.FC = () => {
                         <h3 className="text-lg font-semibold text-slate-800 mb-2">검색 결과가 없습니다</h3>
                         <p className="text-slate-500 mb-6">다른 검색어로 다시 시도해보세요.</p>
                         <div className="flex gap-2 justify-center">
-                            <span className="px-3 py-1 bg-slate-100 text-sm text-slate-600 rounded-lg">#의자</span>
-                            <span className="px-3 py-1 bg-slate-100 text-sm text-slate-600 rounded-lg">#테이블</span>
-                            <span className="px-3 py-1 bg-slate-100 text-sm text-slate-600 rounded-lg">#천막</span>
+                            <Link to="/search?q=의자" className="px-3 py-1 bg-slate-100 text-sm text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">#의자</Link>
+                            <Link to="/search?q=테이블" className="px-3 py-1 bg-slate-100 text-sm text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">#테이블</Link>
+                            <Link to="/search?q=천막" className="px-3 py-1 bg-slate-100 text-sm text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">#천막</Link>
                         </div>
                     </div>
                 )}

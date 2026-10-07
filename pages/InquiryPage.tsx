@@ -3,6 +3,7 @@ import { Container } from '../components/ui/Container';
 import { User, MessageSquare, Clock, Loader2, Plus, X, Send, ChevronDown, CheckCircle } from 'lucide-react';
 import { useAuth } from '../src/context/AuthContext';
 import { Link } from 'react-router-dom';
+import { MyPageSidebar } from '../components/MyPageSidebar';
 import { getMyInquiries, addInquiry, Inquiry } from '../src/api/inquiryApi';
 import { getFAQCategories } from '../src/api/faqApi';
 import { normalizeLegacyFaqCategory, normalizeLegacyFaqCategoryList } from '../src/utils/faqCategoryPolicy';
@@ -111,34 +112,10 @@ export const InquiryPage: React.FC = () => {
     return (
         <div className="py-12 bg-gray-50 min-h-screen">
             <Container>
-                <div className="flex flex-col md:flex-row gap-8">
-                    {/* Sidebar */}
-                    <div className="md:w-1/4">
-                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center">
-                            <div className="w-20 h-20 bg-[#B3C1D4] rounded-full mx-auto mb-4 flex items-center justify-center">
-                                <User size={32} className="text-[#001E45]" />
-                            </div>
-                            <h2 className="text-lg font-semibold text-gray-900">{userProfile?.name || '고객'} 님</h2>
-                            <p className="text-sm text-gray-500 mb-6">{userProfile?.email || user.email}</p>
-                            <div className="text-left space-y-1 border-t border-gray-100 pt-4">
-                                <Link to="/mypage" className="text-sm text-gray-500 block w-full text-left py-2 px-2 rounded hover:bg-gray-50 hover:text-black">
-                                    대여 신청 내역
-                                </Link>
-                                <Link to="/quote-cart" className="text-sm text-gray-500 block w-full text-left py-2 px-2 rounded hover:bg-gray-50 hover:text-black">
-                                    장바구니
-                                </Link>
-                                <Link to="/mypage/info" className="text-sm text-gray-500 block w-full text-left py-2 px-2 rounded hover:bg-gray-50 hover:text-black">
-                                    내 정보 관리
-                                </Link>
-                                <Link to="/mypage/inquiry" className="text-sm font-semibold text-[#001E45] block w-full text-left py-2 px-2 rounded hover:bg-[#001E45]/5">
-                                    1:1 문의 내역
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
+                <div className="grid gap-8 md:grid-cols-[260px_1fr]">
+                    <MyPageSidebar active="inquiry" />
 
-                    {/* Main Content */}
-                    <div className="md:w-3/4">
+                    <main className="min-w-0">
                         <div className="flex items-center justify-between mb-6">
                             <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
                                 <MessageSquare size={24} /> 1:1 문의 내역
@@ -339,7 +316,7 @@ export const InquiryPage: React.FC = () => {
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </main>
                 </div>
             </Container>
         </div>

@@ -241,7 +241,10 @@ export const Hero: React.FC = () => {
       >
         {/* Slides */}
         {slides.map((slide, index) => {
-          const linkHref = slide.target_product_code ? `/p/${slide.target_product_code}` : slide.link || '/';
+          let linkHref = slide.target_product_code ? `/p/${slide.target_product_code}` : slide.link || '/';
+          if (linkHref.includes('humanpartner-mall.web.app')) {
+            linkHref = linkHref.replace(/^https?:\/\/[^\/]+/, '') || '/';
+          }
           const isExternal = linkHref.startsWith('http');
 
           const SlideContent = (

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from './ui/Container';
 import { getQuickMenuItems, QuickMenuItem } from '../src/api/cmsApi';
+import { getCategories, type Category } from '../src/api/categoryApi';
+import { getCategoryHrefByName } from '../src/utils/productCategoryRouting';
 import {
   Hotel, Zap, Ticket, Gift, Globe, ShoppingBag, Utensils, Car,
   LayoutGrid, Key, Monitor, Laptop, Printer, Phone, Camera, Plus, Loader2
@@ -39,6 +41,7 @@ const iconColors = [
 
 export const QuickMenu: React.FC = () => {
   const [items, setItems] = useState<QuickMenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
 
@@ -46,8 +49,12 @@ export const QuickMenu: React.FC = () => {
   useEffect(() => {
     const loadItems = async () => {
       try {
-        const data = await getQuickMenuItems();
-        setItems(data);
+        const [quickMenuData, categoryData] = await Promise.all([
+          getQuickMenuItems(),
+          getCategories().catch(() => []),
+        ]);
+        setItems(quickMenuData);
+        setCategories(categoryData);
       } catch (error) {
         console.error('Failed to load quick menu items:', error);
       } finally {
@@ -83,7 +90,9 @@ export const QuickMenu: React.FC = () => {
             let linkUrl = item.link;
 
             if (item.category) {
-              linkUrl = `/products?category=${encodeURIComponent(item.category)}&title=${encodeURIComponent(item.name)}`;
+              linkUrl =
+                getCategoryHrefByName(categories, item.category) ||
+                `/products?category=${encodeURIComponent(item.category)}&title=${encodeURIComponent(item.name)}`;
             } else if (item.link && !item.link.includes('title=')) {
               // 기존 링크에 title이 없으면 추가
               const hasQuestionMark = item.link.includes('?');

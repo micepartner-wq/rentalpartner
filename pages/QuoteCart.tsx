@@ -1,6 +1,6 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, Printer } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Container } from "../components/ui/Container";
 import { MyPageSidebar } from "../components/MyPageSidebar";
@@ -33,6 +33,30 @@ export const QuoteCartPage: React.FC = () => {
   const selectedItems = useMemo(() => items.filter((item) => item.selected), [items]);
   const allSelected = useMemo(() => items.length > 0 && items.every((item) => item.selected), [items]);
   const selectedTotal = useMemo(() => selectedItems.reduce((sum, item) => sum + item.total_price, 0), [selectedItems]);
+
+  const printComponents = useMemo(() => {
+    const componentMap = new Map<string, number>();
+    selectedItems.forEach(item => {
+      const multiplier = item.product_quantity || 1;
+      
+      if (item.basic_components && item.basic_components.length > 0) {
+        item.basic_components.forEach(comp => {
+          const qty = comp.quantity * multiplier;
+          componentMap.set(comp.name, (componentMap.get(comp.name) || 0) + qty);
+        });
+      } else {
+        componentMap.set(item.product_name, (componentMap.get(item.product_name) || 0) + multiplier);
+      }
+
+      if (item.selected_options && item.selected_options.length > 0) {
+        item.selected_options.forEach(opt => {
+          componentMap.set(opt.name, (componentMap.get(opt.name) || 0) + opt.quantity);
+        });
+      }
+    });
+
+    return Array.from(componentMap.entries()).map(([name, quantity]) => ({ name, quantity }));
+  }, [selectedItems]);
 
   const persistItems = (next: QuoteCartItem[]) => {
     setItems(next);
@@ -154,7 +178,8 @@ export const QuoteCartPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
+    <>
+      <div className="min-h-screen bg-gray-50 py-12 print:hidden">
       <Helmet>
         <title>장바구니 | 렌탈파트너</title>
         <meta name="robots" content="noindex, nofollow" />
@@ -384,7 +409,7 @@ export const QuoteCartPage: React.FC = () => {
                   })}
                 </section>
 
-                <div className="sticky bottom-0 z-20 mt-6 rounded-t-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:rounded-2xl md:shadow-sm">
+                <div className="sticky bottom-[65px] md:bottom-0 z-20 mt-6 rounded-t-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:rounded-2xl md:shadow-sm">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-slate-500">선택 상품 {selectedItems.length}개</p>
@@ -401,13 +426,23 @@ export const QuoteCartPage: React.FC = () => {
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={goRequestPage}
-                      disabled={selectedItems.length === 0}
-                      className="h-12 rounded-xl bg-[#001E45] px-6 font-semibold text-white transition-colors hover:bg-[#002D66] disabled:bg-slate-300 sm:min-w-[220px]"
-                    >
-                      선택 상품 견적요청
-                    </button>
+                    <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                      <button
+                        onClick={() => window.print()}
+                        disabled={selectedItems.length === 0}
+                        className="h-12 flex-1 sm:flex-none rounded-xl border border-slate-300 bg-white px-4 sm:px-6 font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:text-slate-300 disabled:border-slate-200 sm:min-w-[140px] flex items-center justify-center gap-2"
+                      >
+                        <Printer size={18} />
+                        견적서 출력
+                      </button>
+                      <button
+                        onClick={goRequestPage}
+                        disabled={selectedItems.length === 0}
+                        className="h-12 flex-[2] sm:flex-none rounded-xl bg-[#001E45] px-4 sm:px-6 font-semibold text-white transition-colors hover:bg-[#002D66] disabled:bg-slate-300 sm:min-w-[220px]"
+                      >
+                        선택 상품 견적요청
+                      </button>
+                    </div>
                   </div>
                 </div>
               </>
@@ -445,5 +480,113 @@ export const QuoteCartPage: React.FC = () => {
         </div>
       )}
     </div>
+
+      {/* Printable Area */}
+      <div className="hidden print:block bg-white text-black font-sans w-full max-w-[21cm] mx-auto text-[12px] leading-tight print:p-4">
+        
+        {/* Title */}
+        <div className="flex justify-between items-end border-b-2 border-black pb-3 mb-6">
+          <h1 className="text-3xl font-black tracking-widest text-center flex-1 ml-40">가 견 적 서</h1>
+          <div className="text-right w-56 font-bold text-[#001E45]">
+            <div className="text-[10px] tracking-tight mb-0.5 text-gray-500">종합가구·기기 판매 & 렌탈 브랜드</div>
+            <div className="text-2xl tracking-tighter flex items-center justify-end gap-1.5">
+              <span className="bg-[#001E45] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-black">R</span> 렌탈어때
+            </div>
+          </div>
+        </div>
+
+        {/* Company Info Table */}
+        <table className="w-full border-collapse border-2 border-black mb-8 text-center text-[11px]">
+          <tbody>
+            <tr>
+              <th className="border border-black bg-[#E6EEF9] py-2 font-bold w-28">사업자등록번호</th>
+              <td colSpan={3} className="border border-black py-2 text-lg font-bold tracking-widest text-[#001E45]">305-30-85537</td>
+              <th className="border border-black bg-[#E6EEF9] py-2 font-bold w-28">고객센터</th>
+              <td className="border border-black py-2 text-xl font-black tracking-wider text-[#001E45]">1800-1985</td>
+            </tr>
+            <tr>
+              <th className="border border-black bg-[#E6EEF9] py-2 font-bold w-24">상 호 명</th>
+              <td className="border border-black py-2 font-bold tracking-widest text-sm">휴먼파트너</td>
+              <th className="border border-black bg-[#E6EEF9] py-2 font-bold w-24">대표이사</th>
+              <td className="border border-black py-2 font-bold tracking-widest text-sm relative text-center">
+                이 기 섭
+              </td>
+              <th className="border border-black bg-[#E6EEF9] py-2 font-bold w-28">이메일</th>
+              <td className="border border-black py-2 text-[11px]">hm_solution@naver.com</td>
+            </tr>
+            <tr>
+              <th className="border border-black bg-[#E6EEF9] py-2 font-bold">소 재 지</th>
+              <td colSpan={3} className="border border-black py-2 text-left px-3 text-[10px]">대전광역시 대덕구 대화로106번길 66 펜타플렉스 705호</td>
+              <th className="border border-black bg-[#E6EEF9] py-2 font-bold">홈페이지</th>
+              <td className="border border-black py-2 text-[11px]">humanpartner.kr</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Product Table */}
+        <div className="flex border-2 border-b-0 border-black w-fit">
+          <div className="bg-[#E6EEF9] px-6 py-1.5 font-bold text-black text-sm border-r-2 border-black">
+            렌탈상품 내역
+          </div>
+        </div>
+        <table className="w-full border-collapse border-2 border-black text-center mb-8">
+          <thead>
+            <tr className="bg-[#E6EEF9]">
+              <th className="border border-black py-1.5 w-12 font-bold">NO</th>
+              <th className="border border-black py-1.5 font-bold">상 품 명</th>
+              <th className="border border-black py-1.5 w-32 font-bold">규 격</th>
+              <th className="border border-black py-1.5 w-24 font-bold">수 량</th>
+              <th className="border border-black py-1.5 w-40 font-bold">비 고</th>
+            </tr>
+          </thead>
+          <tbody>
+            {printComponents.map((comp, idx) => (
+              <tr key={idx}>
+                <td className="border border-black py-1">{idx + 1}</td>
+                <td className="border border-black py-1 text-left px-3 font-semibold text-[11px] leading-tight break-keep">{comp.name}</td>
+                <td className="border border-black py-1 text-gray-500 text-[9px]">-</td>
+                <td className="border border-black py-1 font-bold text-[11px]">{comp.quantity}</td>
+                <td className="border border-black py-1"></td>
+              </tr>
+            ))}
+            <tr>
+              <th colSpan={3} className="border border-black bg-[#E6EEF9] py-3 text-right px-6 font-bold text-sm">
+                총 견적 금액 (VAT 포함)
+              </th>
+              <td colSpan={2} className="border border-black py-3 text-center font-black text-xl text-red-600 tracking-wider">
+                {selectedTotal.toLocaleString()} 원
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Notice Section */}
+        <div className="flex border-2 border-b-0 border-black w-fit">
+          <div className="bg-[#E6EEF9] px-6 py-1.5 font-bold text-black text-sm border-r-2 border-black">
+            견적 확인 안내
+          </div>
+        </div>
+        <table className="w-full border-collapse border-2 border-black text-left mb-16">
+          <tbody>
+            <tr>
+              <td className="border border-black p-6 text-[12px] leading-loose text-gray-800 bg-gray-50/50">
+                1) 본 견적서는 렌탈어때(휴먼파트너) 온라인 웹사이트에서 발행된 <strong className="text-black">가견적서</strong>입니다.<br/>
+                2) 실제 렌탈 계약 시, 대여 기간, 설치 장소(엘리베이터 유무), 야간 및 주말 작업 여부에 따라 <strong className="text-red-600">물류비/세팅비가 추가되어 최종 금액이 변동</strong>될 수 있습니다.<br/>
+                3) 견적일자: <strong>{new Date().toLocaleDateString('ko-KR')}</strong><br/>
+                4) 본 견적서는 발행일로부터 7일간 유효합니다.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="text-center text-sm font-semibold">
+          <p>위와 같이 가견적을 제안합니다.</p>
+          <p className="mt-4 text-[13px]">{new Date().getFullYear()}년 {new Date().getMonth() + 1}월 {new Date().getDate()}일</p>
+          <div className="mt-8 text-3xl tracking-[0.5em] font-black pl-4">
+            휴 먼 파 트 너
+          </div>
+        </div>
+      </div>
+    </>
   );
 };

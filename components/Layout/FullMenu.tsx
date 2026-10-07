@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { X, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { NavMenuItem, getAllNavMenuItems } from '../../src/api/cmsApi';
+import { getCategories, type Category } from '../../src/api/categoryApi';
+import { buildCategoryMaps, getCategoryHref, getCategoryHrefByName, sortCategories } from '../../src/utils/productCategoryRouting';
 import { Container } from '../ui/Container';
 import { useAuth } from '../../src/context/AuthContext';
 
@@ -13,20 +15,35 @@ interface FullMenuProps {
 
 export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile', items }) => {
     const [menuItems, setMenuItems] = useState<NavMenuItem[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const { user, userProfile, logout } = useAuth();
 
     useEffect(() => {
+        const loadCategoriesOnly = async () => {
+            try {
+                const categoryData = await getCategories().catch(() => []);
+                setCategories(categoryData);
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        };
+
         if (items) {
             setMenuItems(items);
+            void loadCategoriesOnly();
             setLoading(false);
             return;
         }
 
         const loadMenu = async () => {
             try {
-                const data = await getAllNavMenuItems();
-                setMenuItems(data);
+                const [menuData, categoryData] = await Promise.all([
+                    getAllNavMenuItems(),
+                    getCategories().catch(() => []),
+                ]);
+                setMenuItems(menuData);
+                setCategories(categoryData);
             } catch (error) {
                 console.error('Failed to load menu:', error);
             } finally {
@@ -37,8 +54,29 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
 
     }, [variant, items]);
 
-    // Grouping: Parent (items with no category or unique category names) -> Children
+    const categoryGroups = React.useMemo(() => {
+        if (categories.length === 0) return [];
+
+        const { byId, childrenByParentId } = buildCategoryMaps(categories);
+        const roots = sortCategories(categories.filter((category) => !category.parent_id));
+
+        return roots.map((root) => ({
+            name: root.name,
+            link: getCategoryHref(root, byId),
+            items: (childrenByParentId.get(root.id || null) || []).map((child) => ({
+                id: child.id,
+                name: child.name,
+                link: getCategoryHref(child, byId),
+            })),
+        }));
+    }, [categories]);
+
+    // Fallback grouping from legacy nav_menu_items when categories are unavailable.
     const groups = React.useMemo(() => {
+        if (categoryGroups.length > 0) {
+            return categoryGroups;
+        }
+
         const pMap = new Map<string, { name: string; items: NavMenuItem[]; display_order: number }>();
 
         // 1. Identify all defined parent items to check existence (Active + Inactive)
@@ -83,15 +121,24 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
             ...g,
             items: g.items.sort((a, b) => a.display_order - b.display_order)
         }));
-    }, [menuItems]);
+    }, [categoryGroups, menuItems]);
 
     const getGroupLink = (groupName: string) => {
+        // Always try to resolve to the English SEO URL first
+        const seoLink = getCategoryHrefByName(categories, groupName);
+        if (seoLink && seoLink !== '/products') return seoLink;
+
+        if (categoryGroups.length > 0) {
+            const matched = categoryGroups.find((group) => group.name === groupName);
+            if (matched?.link) return matched.link;
+        }
+
         const parentObj = menuItems.find(i => i.name === groupName && !i.category);
         const parentLink = parentObj?.link?.trim();
-        if (parentLink && parentLink !== '#') {
+        if (parentLink && parentLink !== '#' && parentLink !== '/products' && parentLink !== '/' && !parentLink.includes('?category=')) {
             return parentLink;
         }
-        return `/products?category=${encodeURIComponent(groupName)}`;
+        return seoLink && seoLink !== '/products' ? seoLink : `/products?category=${encodeURIComponent(groupName)}`;
     };
 
     return (
@@ -121,7 +168,7 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
                 {variant === 'mobile' && (
                     <>
                         <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-white">
-                            <img src="/logo.png" alt="렌탈어때" className="h-[36px] object-contain" />
+                            <img src="/ONlogo.png" alt="렌탈어때" className="h-[26px] object-contain" />
                             <button
                                 onClick={onClose}
                                 className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors"
@@ -143,7 +190,7 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
                                             <h3 className="text-[20px] leading-[1.35] font-semibold text-slate-800">
                                                 {(userProfile?.name || '고객')}님, 안녕하세요!
                                             </h3>
-                                            <div className="mt-5 grid grid-cols-2 gap-3">
+                                            <div className="mt-5 grid grid-cols-2 gap-2">
                                                 <Link
                                                     to="/mypage"
                                                     onClick={onClose}
@@ -159,13 +206,18 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
                                                     고객센터
                                                 </Link>
                                             </div>
+                                            <div className="mt-2 grid grid-cols-3 gap-2">
+                                                <Link to="/notice" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">공지사항</Link>
+                                                <Link to="/review" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">설치후기</Link>
+                                                <Link to="/event" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">이벤트</Link>
+                                            </div>
                                         </>
                                     ) : (
                                         <>
                                             <h3 className="text-[20px] leading-[1.35] font-semibold text-slate-800">
                                                 환영합니다!
                                             </h3>
-                                            <div className="mt-5 grid grid-cols-2 gap-3">
+                                            <div className="mt-5 grid grid-cols-2 gap-2">
                                                 <Link
                                                     to="/login"
                                                     onClick={onClose}
@@ -180,6 +232,11 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
                                                 >
                                                     회원가입
                                                 </Link>
+                                            </div>
+                                            <div className="mt-2 grid grid-cols-3 gap-2">
+                                                <Link to="/notice" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">공지사항</Link>
+                                                <Link to="/review" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">설치후기</Link>
+                                                <Link to="/cs" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">고객센터</Link>
                                             </div>
                                         </>
                                     )}
@@ -218,17 +275,33 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
                                     <div className={variant === 'mobile' ? 'hidden' : 'block'}>
                                         <ul className="space-y-3">
                                             {group.items.length > 0 ? (
-                                                group.items.map(item => (
-                                                    <li key={item.id}>
-                                                        <Link
-                                                            to={`/products?category=${encodeURIComponent(item.name)}` /*&title removed to keep URL simple*/}
-                                                            onClick={onClose}
-                                                            className="block transition-all hover:text-[#001E45] text-slate-600 flex items-center gap-1 group text-sm"
-                                                        >
-                                                            {item.name}
-                                                        </Link>
-                                                    </li>
-                                                ))
+                                                group.items.map(item => {
+                                                    // Resolve SEO URL prioritizing English slugs
+                                                    const seoLink = getCategoryHrefByName(categories, item.name);
+                                                    let finalLink = seoLink && seoLink !== '/products' ? seoLink : (item as any).link;
+                                                    
+                                                    // Prevent legacy category query strings
+                                                    if (finalLink?.includes('?category=')) {
+                                                        finalLink = seoLink || finalLink;
+                                                    }
+
+                                                    // Prevent subcategories from just routing to /products
+                                                    if (!finalLink || finalLink === '/products' || finalLink === '/') {
+                                                        finalLink = `/products?category=${encodeURIComponent(item.name)}`;
+                                                    }
+
+                                                    return (
+                                                        <li key={item.id}>
+                                                            <Link
+                                                                to={finalLink}
+                                                                onClick={onClose}
+                                                                className="block transition-all hover:text-[#001E45] text-slate-600 flex items-center gap-1 group text-sm"
+                                                            >
+                                                                {item.name}
+                                                            </Link>
+                                                        </li>
+                                                    );
+                                                })
                                             ) : (
                                                 <li>
                                                     <Link
@@ -261,4 +334,3 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
         </div>
     );
 };
-

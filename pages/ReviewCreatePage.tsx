@@ -55,6 +55,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
   const isEditMode = Boolean(editPostId);
 
   const [title, setTitle] = useState('');
+  const [summary, setSummary] = useState('');
   const [category, setCategory] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [initialContent, setInitialContent] = useState('');
@@ -289,6 +290,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
         }
 
         setTitle(post.title || '');
+        setSummary(post.summary || '');
         setCategory(post.category || '');
         setImageUrl(post.image_url || post.mobile_image_url || '');
         setInitialContent(post.content || '');
@@ -442,6 +444,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
     setError('');
 
     const normalizedTitle = title.trim();
+    const normalizedSummary = summary.trim();
     const normalizedCategory = category.trim();
     const serializedContent = toTokenContent(editorRef.current);
 
@@ -471,6 +474,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
         const updated = await updateBoardPost(editPostId, {
           category: normalizedCategory,
           title: normalizedTitle,
+          summary: normalizedSummary,
           content: serializedContent,
           image_url: imageUrl,
           mobile_image_url: imageUrl,
@@ -489,6 +493,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
           board_type: 'review',
           category: normalizedCategory,
           title: normalizedTitle,
+          summary: normalizedSummary,
           content: serializedContent,
           image_url: imageUrl,
           mobile_image_url: imageUrl,
@@ -556,6 +561,20 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
                   <option key={item} value={item}>{item}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">한줄 요약</label>
+            <textarea
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder="리스트 카드에 노출할 1~2문장 요약을 입력해주세요."
+              className="min-h-[96px] w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#001E45]"
+              maxLength={240}
+            />
+            <div className="mt-2 text-right text-xs text-slate-400">
+              {summary.length}/240
             </div>
           </div>
 

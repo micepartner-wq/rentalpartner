@@ -116,14 +116,11 @@ export const MyInfoPage: React.FC = () => {
     return (
         <div className="py-12 bg-gray-50 min-h-screen">
             <Container>
-                <div className="flex flex-col md:flex-row gap-8">
-                    {/* Sidebar */}
-                    <div className="md:w-1/4">
-                        <MyPageSidebar active="info" />
-                    </div>
+                <div className="grid gap-8 md:grid-cols-[260px_1fr]">
+                    <MyPageSidebar active="info" />
 
                     {/* Main Content */}
-                    <div className="md:w-3/4 space-y-6">
+                    <main className="min-w-0 space-y-6">
                         <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
                             <Settings size={24} /> 내 정보 관리
                         </h1>
@@ -244,7 +241,7 @@ export const MyInfoPage: React.FC = () => {
                                 {passwordSaving ? <Loader2 className="animate-spin" size={18} /> : '비밀번호 변경'}
                             </button>
                         </div>
-                    </div>
+                    </main>
                 </div>
             </Container>
         </div>
