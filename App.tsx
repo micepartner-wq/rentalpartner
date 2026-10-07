@@ -1,7 +1,10 @@
 import { lazy, Suspense, useEffect, type ComponentType, type ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
+import { GlobalErrorFallback } from './components/ui/GlobalErrorFallback';
 import { Header } from './components/Layout/Header';
 import { Footer } from './components/Layout/Footer';
+import { FloatingQuoteButton } from './components/FloatingQuoteButton';
 import { AuthProvider } from './src/context/AuthContext';
 import { PriceDisplayProvider } from './src/context/PriceDisplayContext';
 import { AdminRoute } from './src/components/AdminRoute';
@@ -17,7 +20,7 @@ const lazyPage = <T extends Record<string, unknown>>(
 
 const MainPage = lazyPage(() => import('./pages/MainPage'), 'MainPage');
 const ProductListPage = lazyPage(() => import('./pages/ProductListPage'), 'ProductListPage');
-const ProductDetailPage = lazyPage(() => import('./pages/ProductDetail'), 'ProductDetailPage');
+const ProductRouteResolver = lazyPage(() => import('./pages/ProductRouteResolver'), 'ProductRouteResolver');
 const MyPage = lazyPage(() => import('./pages/MyPage'), 'MyPage');
 const MyInfoPage = lazyPage(() => import('./pages/MyInfoPage'), 'MyInfoPage');
 const InquiryPage = lazyPage(() => import('./pages/InquiryPage'), 'InquiryPage');
@@ -134,7 +137,8 @@ function App() {
   return (
     <AuthProvider>
       <PriceDisplayProvider>
-        <Router>
+        <ErrorBoundary FallbackComponent={GlobalErrorFallback} onReset={() => window.location.reload()}>
+          <Router>
           <ScrollToTop />
           <RouteAnalytics />
           <Routes>
@@ -171,12 +175,15 @@ function App() {
               path="/*"
               element={
                 <div className="min-h-screen bg-white">
-                  <Header />
+                  <div className="print:hidden">
+                    <Header />
+                  </div>
                   <Suspense fallback={<RouteFallback />}>
                     <Routes>
                       <Route path="/" element={<MainPage />} />
                       <Route path="/products" element={<ProductListPage />} />
-                      <Route path="/products/:id" element={<ProductDetailPage />} />
+                      <Route path="/products/:categorySlug" element={<ProductRouteResolver />} />
+                      <Route path="/products/:categorySlug/:subcategorySlug" element={<ProductRouteResolver />} />
                       <Route path="/mypage" element={<MyPage />} />
                       <Route path="/mypage/info" element={<MyInfoPage />} />
                       <Route path="/mypage/inquiry" element={<InquiryPage />} />
@@ -202,12 +209,16 @@ function App() {
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>
-                  <Footer />
+                  <div className="print:hidden">
+                    <Footer />
+                    <FloatingQuoteButton />
+                  </div>
                 </div>
               }
             />
           </Routes>
-        </Router>
+          </Router>
+        </ErrorBoundary>
       </PriceDisplayProvider>
     </AuthProvider>
   );

@@ -162,6 +162,23 @@ export const getAdditionalOptionProducts = async (): Promise<Product[]> => {
     return products.filter(isAdditionalOptionPoolProduct);
 };
 
+const SYNONYMS: Record<string, string[]> = {
+    'notebook': ['노트북', '랩탑', 'laptop'],
+    '노트북': ['notebook', '랩탑', 'laptop'],
+    'pc': ['데스크탑', '컴퓨터', 'desktop', 'computer'],
+    '컴퓨터': ['pc', '데스크탑', 'desktop', 'computer'],
+    '데스크탑': ['pc', '컴퓨터', 'desktop', 'computer'],
+    'tv': ['티비', '텔레비전', 'television'],
+    '티비': ['tv', '텔레비전', 'television'],
+    'monitor': ['모니터'],
+    '모니터': ['monitor'],
+    '의자': ['chair', '체어'],
+    '테이블': ['table', '책상', 'desk'],
+    '책상': ['테이블', 'table', 'desk'],
+    '빔프로젝터': ['프로젝터', 'projector', '빔'],
+    '프로젝터': ['빔프로젝터', 'projector', '빔'],
+};
+
 // ???ㅺ강? ?濡ろ떟???API
 export const searchProducts = async (keyword: string): Promise<Product[]> => {
     if (!keyword) return [];
@@ -174,8 +191,18 @@ export const searchProducts = async (keyword: string): Promise<Product[]> => {
             'all'
         );
 
+        const lowerKeyword = keyword.toLowerCase();
+        const searchTerms = [lowerKeyword, ...(SYNONYMS[lowerKeyword] || [])];
+        
+        const orConditions = searchTerms.flatMap(term => [
+            `name.ilike.%${term}%`,
+            `description.ilike.%${term}%`,
+            `short_description.ilike.%${term}%`,
+            `category.ilike.%${term}%`
+        ]).join(',');
+
         const { data, error } = await query
-            .or(`name.ilike.%${keyword}%,description.ilike.%${keyword}%,short_description.ilike.%${keyword}%`)
+            .or(orConditions)
             .eq('product_type', 'basic')
             .order('created_at', { ascending: false });
 
@@ -184,10 +211,20 @@ export const searchProducts = async (keyword: string): Promise<Product[]> => {
     } catch (error) {
         if (!isMissingCatalogTypeError(error)) throw error;
 
+        const lowerKeyword = keyword.toLowerCase();
+        const searchTerms = [lowerKeyword, ...(SYNONYMS[lowerKeyword] || [])];
+        
+        const orConditions = searchTerms.flatMap(term => [
+            `name.ilike.%${term}%`,
+            `description.ilike.%${term}%`,
+            `short_description.ilike.%${term}%`,
+            `category.ilike.%${term}%`
+        ]).join(',');
+
         const { data, error: fallbackError } = await supabase
             .from('products')
             .select('*')
-            .or(`name.ilike.%${keyword}%,description.ilike.%${keyword}%,short_description.ilike.%${keyword}%`)
+            .or(orConditions)
             .eq('product_type', 'basic')
             .order('created_at', { ascending: false });
 
