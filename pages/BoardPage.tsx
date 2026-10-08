@@ -248,7 +248,7 @@ export const BoardPage: React.FC<BoardPageProps> = ({ boardType }) => {
                 {['전체', ...categories].map((category, index) => (
                   <button
                     key={category}
-                    ref={(el) => (tabsRef.current[index] = el)}
+                    ref={(el) => { tabsRef.current[index] = el; }}
                     onClick={() => setActiveCategory(category)}
                     className={`
                       relative inline-flex h-12 min-w-[104px] shrink-0 items-center justify-center whitespace-nowrap px-4 text-center text-[15px] md:h-14 md:min-w-[120px] md:text-[16px] font-bold transition-colors

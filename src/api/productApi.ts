@@ -61,10 +61,13 @@ const isMissingProductOptionsError = (error: unknown) => {
     return message.includes('product_options');
 };
 
-const applyCatalogFilter = <T>(query: T & {
-    eq: (column: string, value: string) => T;
-    or: (filters: string) => T;
-}, catalogType?: ProductCatalogType | 'all') => {
+// Supabase 쿼리 빌더의 제네릭을 그대로 받으면 타입 추론이 무한히 깊어져(TS2589) 최소한의 모양만 선언한다.
+interface CatalogFilterable {
+    eq: (column: string, value: string) => any;
+    or: (filters: string) => any;
+}
+
+const applyCatalogFilter = (query: CatalogFilterable, catalogType?: ProductCatalogType | 'all'): any => {
     if (!catalogType || catalogType === 'all') {
         return query;
     }
@@ -76,13 +79,14 @@ const applyCatalogFilter = <T>(query: T & {
     return query.or('catalog_type.eq.general,catalog_type.is.null');
 };
 
+// 쿼리 빌더 타입을 한 곳에서만 좁혀 두면 호출부마다 깊은 제네릭 추론이 일어나지 않는다.
+const selectProducts = () => supabase.from('products').select('*') as unknown as CatalogFilterable;
+
 // 癲ル슢?꾤땟??????ㅺ강? ?釉뚰???
 export const getProducts = async (options: ProductQueryOptions = {}): Promise<Product[]> => {
     try {
         const query = applyCatalogFilter(
-            supabase
-            .from('products')
-            .select('*'),
+            selectProducts(),
             options.catalogType
         );
 
@@ -106,7 +110,7 @@ export const getProducts = async (options: ProductQueryOptions = {}): Promise<Pr
 // ?怨멸텭??沃섅뀙??關履????????ㅺ강? ?釉뚰???
 export const getProductsByCategory = async (category: string, options: ProductQueryOptions = {}): Promise<Product[]> => {
     try {
-        const query = applyCatalogFilter(supabase.from('products').select('*'), options.catalogType);
+        const query = applyCatalogFilter(selectProducts(), options.catalogType);
 
         if (category && category !== 'all') {
             query.eq('category', category);
@@ -131,7 +135,7 @@ export const getProductsByCategory = async (category: string, options: ProductQu
 // ??????ヂ????ㅺ강? ?釉뚰???(basic, essential, additional, cooperative, place, food)
 export const getProductsByType = async (type: string, options: ProductQueryOptions = {}): Promise<Product[]> => {
     try {
-        let query = applyCatalogFilter(supabase.from('products').select('*'), options.catalogType);
+        let query = applyCatalogFilter(selectProducts(), options.catalogType);
         
         if (type === 'additional' || type === 'essential') {
             // 'essential'?? 'additional'?? '??醫딅떁?????⑥?????? ???굿??            query = query.in('product_type', ['essential', 'additional']);
@@ -186,9 +190,7 @@ export const searchProducts = async (keyword: string): Promise<Product[]> => {
 
     try {
         const query = applyCatalogFilter(
-            supabase
-            .from('products')
-            .select('*'),
+            selectProducts(),
             'all'
         );
 
