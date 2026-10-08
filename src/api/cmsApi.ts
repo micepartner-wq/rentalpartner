@@ -184,9 +184,11 @@ export interface Banner {
     title: string;
     subtitle: string;
     image_url: string;
+    mobile_image_url?: string | null;
     link: string;
     button_text: string;
     brand_text?: string; // For hero banners: small text above title (e.g., "Human Partner Mice")
+    display_mode?: 'text' | 'image';
     banner_type: 'hero' | 'promo'; // 'hero' for main slider, 'promo' for tab section
     tab_id?: string; // For promo banners: which tab this banner belongs to
     display_order: number;

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Container } from './ui/Container';
 import { getHeroBanners, Banner } from '../src/api/cmsApi';
@@ -62,10 +62,13 @@ export const Hero: React.FC = () => {
     const current = slides[currentSlide];
     const next = slides[(currentSlide + 1) % slides.length];
     const nextAfter = slides[(currentSlide + 2) % slides.length];
+    const isMobileViewport = window.matchMedia('(max-width: 767px)').matches;
+    const imageForViewport = (banner?: Banner) =>
+      isMobileViewport ? banner?.mobile_image_url?.trim() || banner?.image_url : banner?.image_url;
 
-    preloadImage(current?.image_url);
-    preloadImage(next?.image_url);
-    preloadImage(nextAfter?.image_url);
+    preloadImage(imageForViewport(current));
+    preloadImage(imageForViewport(next));
+    preloadImage(imageForViewport(nextAfter));
   }, [slides, currentSlide, preloadImage]);
 
   useEffect(() => {
@@ -192,6 +195,8 @@ export const Hero: React.FC = () => {
     beginDrag(e.clientX);
   };
 
+  const preventNativeDrag = (e: React.DragEvent<HTMLDivElement>) => e.preventDefault();
+
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     beginDrag(e.targetTouches[0].clientX);
   };
@@ -206,7 +211,7 @@ export const Hero: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="relative w-full aspect-[4/3] md:aspect-auto md:h-[500px] lg:h-[600px] bg-slate-900 flex items-center justify-center">
+      <section className="relative w-full h-[570px] md:h-[620px] xl:h-auto xl:flex-1 xl:min-h-[580px] bg-[#061c32] flex items-center justify-center">
         <Loader2 className="animate-spin text-white" size={40} />
       </section>
     );
@@ -214,15 +219,15 @@ export const Hero: React.FC = () => {
 
   if (slides.length === 0) {
     return (
-      <section className="relative w-full aspect-[4/3] md:aspect-auto md:h-[500px] lg:h-[600px] bg-slate-900 flex items-center justify-center">
-        <p className="text-white/50">배너가 없습니다. Admin에서 배너를 추가해주세요.</p>
+      <section className="relative w-full h-[570px] md:h-[620px] xl:h-auto xl:flex-1 xl:min-h-[580px] bg-[#061c32] flex items-center justify-center">
+        <p className="text-white/70">더 나은 공간을 위한 렌탈을 준비하고 있습니다.</p>
       </section>
     );
   }
 
   return (
     <section
-      className="relative w-full aspect-[4/3] md:aspect-auto md:h-[500px] lg:h-[600px] bg-slate-900 overflow-hidden group"
+      className="relative w-full h-[570px] sm:h-[620px] md:h-[650px] xl:h-auto xl:flex-1 xl:min-h-[580px] bg-[#061c32] overflow-hidden group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => {
         if (!isDragging) {
@@ -233,6 +238,7 @@ export const Hero: React.FC = () => {
       <div
         className={`relative h-full select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
+        onDragStart={preventNativeDrag}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -241,7 +247,8 @@ export const Hero: React.FC = () => {
       >
         {/* Slides */}
         {slides.map((slide, index) => {
-          let linkHref = slide.target_product_code ? `/p/${slide.target_product_code}` : slide.link || '/';
+          const isImageOnly = slide.display_mode === 'image';
+          let linkHref = slide.target_product_code ? `/p/${slide.target_product_code}` : (slide.link || '').trim();
           if (linkHref.includes('humanpartner-mall.web.app')) {
             linkHref = linkHref.replace(/^https?:\/\/[^\/]+/, '') || '/';
           }
@@ -251,55 +258,61 @@ export const Hero: React.FC = () => {
             <>
               {/* Background Image */}
               <div
-                className="absolute inset-0 w-full h-full bg-cover bg-center transform-gpu transition-transform duration-[7600ms] ease-linear group-hover/slide:scale-[1.03]"
-                style={{
-                  backgroundImage: `url(${slide.image_url})`,
-                  willChange: 'transform'
-                }}
+                className={`absolute inset-0 w-full h-full transform-gpu transition-transform duration-[7000ms] ease-out motion-reduce:transition-none ${isImageOnly ? 'bg-white' : index === currentSlide ? 'scale-[1.035]' : 'scale-100'}`}
+                style={{ willChange: 'transform' }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/24 to-black/10 md:from-black/70 md:via-black/10 md:to-transparent"></div>
-                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,18,43,0.78)_0%,rgba(0,18,43,0.54)_34%,rgba(0,18,43,0.20)_62%,rgba(0,18,43,0.04)_100%)] md:bg-[linear-gradient(90deg,rgba(0,18,43,0.76)_0%,rgba(0,18,43,0.48)_38%,rgba(0,18,43,0.12)_68%,rgba(0,18,43,0)_100%)]"></div>
+                <picture className="absolute inset-0 block">
+                  {slide.mobile_image_url?.trim() && <source media="(max-width: 767px)" srcSet={slide.mobile_image_url.trim()} />}
+                  <img src={slide.image_url} alt={isImageOnly ? slide.title : ''} draggable={false} className={`w-full h-full object-center ${isImageOnly ? 'object-contain' : 'object-cover'}`} />
+                </picture>
+                {!isImageOnly && <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,21,42,0.87)_0%,rgba(3,21,42,0.63)_38%,rgba(3,21,42,0.17)_77%),linear-gradient(0deg,rgba(2,15,31,0.55)_0%,transparent_42%)]" />}
               </div>
 
               {/* Content Area */}
-              <Container className="relative h-full flex flex-col justify-end md:justify-center text-white z-20 px-5 md:px-6">
-                <div className="max-w-4xl pb-7 md:pb-0">
+              {!isImageOnly && <Container className="relative h-full flex flex-col justify-center text-white z-20 px-6 sm:px-8">
+                <div className="max-w-[790px] pb-12 md:pb-5">
+                  <div className={`mb-6 md:mb-8 flex items-center gap-3 text-[11px] md:text-xs font-semibold tracking-[0.2em] text-sky-200 uppercase transition-all duration-700 motion-reduce:transition-none ${index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+                    <span className="h-px w-8 bg-sky-200/80" />{slide.brand_text?.trim() || 'RENTAL EOTTAE'}
+                  </div>
                   {/* Main Title */}
-                  <h1 className={`max-w-[240px] md:max-w-none text-[30px] md:text-5xl lg:text-6xl font-semibold leading-[1.14] tracking-[-0.03em] text-white mb-2 md:mb-6 drop-shadow-[0_3px_12px_rgba(0,0,0,0.55)] transition-all duration-760 delay-190 transform
+                  <h1 className={`max-w-[650px] text-[40px] sm:text-[48px] md:text-[62px] xl:text-[72px] font-semibold leading-[1.14] tracking-[-0.055em] text-white mb-5 md:mb-7 break-keep transition-all duration-700 delay-100 motion-reduce:transition-none transform
                     ${index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}
                   `}>
                     {slide.title}
                   </h1>
 
                   {/* Subtitle */}
-                  <p className={`max-w-[240px] md:max-w-2xl text-[16px] md:text-[22px] font-normal text-white/90 leading-[1.45] md:leading-relaxed break-keep drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] transition-all duration-790 delay-300 transform
+                  <p className={`max-w-[580px] text-[16px] md:text-[20px] font-normal text-white/85 leading-[1.65] break-keep transition-all duration-700 delay-200 motion-reduce:transition-none transform
                     ${index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}
                   `}>
                     {slide.subtitle}
                   </p>
 
                   {/* Action CTA */}
-                  <div className={`hidden md:block mt-8 md:mt-10 transition-all duration-840 delay-420 transform
+                  {linkHref && <div className={`mt-9 md:mt-11 transition-all duration-700 delay-300 motion-reduce:transition-none transform
                     ${index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}
                   `}>
-                    <div className="inline-flex items-center justify-center gap-2 w-[160px] md:w-[220px] h-[44px] md:h-[52px] rounded-lg bg-white text-[#001E45] text-sm md:text-base font-semibold shadow-lg transition-all duration-300 hover:bg-[#f8f9fa] hover:-translate-y-0.5">
+                    <div className="inline-flex items-center justify-between gap-6 min-w-[180px] h-[52px] md:h-[58px] px-6 rounded-full bg-white text-[#062949] text-sm md:text-[15px] font-semibold shadow-[0_12px_30px_rgba(0,0,0,0.18)] transition-all duration-300 hover:bg-sky-50 hover:translate-x-1">
                       {slide.button_text?.trim() || '바로가기'}
+                      <ArrowUpRight className="w-5 h-5" />
                     </div>
-                  </div>
+                  </div>}
                 </div>
-              </Container>
+              </Container>}
             </>
           );
 
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 w-full h-full transition-opacity duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)]
+              className={`absolute inset-0 w-full h-full transition-opacity duration-[900ms] motion-reduce:transition-none ease-[cubic-bezier(0.22,1,0.36,1)]
                 ${index === currentSlide ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}
               `}
               style={{ willChange: 'opacity' }}
             >
-              {isExternal ? (
+              {!linkHref ? (
+                <div className="block w-full h-full relative">{SlideContent}</div>
+              ) : isExternal ? (
                 <a
                   href={linkHref}
                   target="_blank"
@@ -323,50 +336,34 @@ export const Hero: React.FC = () => {
         })}
       </div>
 
-      {/* Navigation Arrows */}
-      <button
-        type="button"
-        onClick={prevSlide}
-        className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md hidden md:flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 opacity-45 hover:opacity-100 group-hover:opacity-80"
-        aria-label="Previous slide"
-      >
-        <ChevronLeft size={28} />
-      </button>
-      <button
-        type="button"
-        onClick={nextSlide}
-        className="absolute right-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md hidden md:flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 opacity-45 hover:opacity-100 group-hover:opacity-80"
-        aria-label="Next slide"
-      >
-        <ChevronRight size={28} />
-      </button>
+      {/* Slide controls */}
+      <div className="absolute inset-x-0 z-30 bottom-7 md:bottom-10">
+      <Container className="flex items-center justify-between px-6 sm:px-8 text-white">
+        <div className="flex items-center gap-4 md:gap-6 rounded-full bg-slate-950/35 px-4 backdrop-blur-sm">
+          <span className="text-sm font-semibold tabular-nums">{String(currentSlide + 1).padStart(2, '0')} <span className="text-white/45 mx-1">/</span> {String(slides.length).padStart(2, '0')}</span>
+          <div className="flex items-center gap-1.5">
+            {slides.map((_, index) => (
+              <button key={index} type="button" onClick={() => goToSlide(index)} aria-label={`${index + 1}번 슬라이드 보기`} aria-current={index === currentSlide ? 'true' : undefined} className="group py-3">
+                <span className={`block h-[3px] rounded-full transition-all duration-500 ${index === currentSlide ? 'w-9 md:w-12 bg-white' : 'w-4 md:w-6 bg-white/40 group-hover:bg-white/80'}`} />
+              </button>
+            ))}
+          </div>
+        </div>
+        {slides.length > 1 && <div className="flex items-center gap-2">
+          <button type="button" onClick={prevSlide} className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/35 bg-slate-950/35 backdrop-blur-sm flex items-center justify-center hover:bg-slate-950/50 transition-colors" aria-label="이전 슬라이드"><ChevronLeft size={20} /></button>
+          <button type="button" onClick={nextSlide} className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/35 bg-slate-950/35 backdrop-blur-sm flex items-center justify-center hover:bg-slate-950/50 transition-colors" aria-label="다음 슬라이드"><ChevronRight size={20} /></button>
+        </div>}
+      </Container>
+      </div>
 
       <div
         className={`absolute left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-black/45 text-white text-xs md:text-sm font-medium backdrop-blur-sm transition-all duration-300 ${
-          showSwipeHint ? 'bottom-16 md:bottom-20 opacity-100' : 'bottom-14 md:bottom-18 opacity-0 pointer-events-none'
+          showSwipeHint ? 'bottom-24 md:bottom-28 opacity-100' : 'bottom-20 md:bottom-24 opacity-0 pointer-events-none'
         }`}
       >
         좌우로 넘겨보세요
       </div>
 
-      {/* Indicators */}
-      <div className="absolute left-5 top-5 z-30 flex gap-2 md:left-1/2 md:top-auto md:bottom-8 md:-translate-x-1/2 md:gap-3">
-        {slides.map((_, index) => (
-          <button
-            key={index}
-            type="button"
-            onClick={() => goToSlide(index)}
-            className="group rounded-full p-1 md:py-4 md:px-0"
-            aria-label={`Go to slide ${index + 1}`}
-          >
-            <div className={`transition-all duration-500 rounded-full
-              ${index === currentSlide
-                ? 'w-2.5 h-2.5 bg-white md:h-1 md:w-10 md:rounded-full md:bg-white'
-                : 'w-2.5 h-2.5 bg-slate-300/90 group-hover:bg-slate-200 md:h-1 md:w-6 md:rounded-full md:bg-slate-300/85 md:group-hover:bg-slate-200'}
-            `} />
-          </button>
-        ))}
-      </div>
     </section>
   );
 };

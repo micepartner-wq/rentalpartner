@@ -40,6 +40,7 @@ export const CMSManager: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const mobileImageInputRef = useRef<HTMLInputElement>(null);
 
     // Data states
     const [quickMenuItems, setQuickMenuItems] = useState<QuickMenuItem[]>([]);
@@ -100,7 +101,7 @@ export const CMSManager: React.FC = () => {
         if (activeTab === 'quickmenu') {
             setFormData({ name: '', link: '/', category: '', display_order: quickMenuItems.length + 1, is_active: true });
         } else if (activeTab === 'banners') {
-            setFormData({ title: '', subtitle: '', image_url: '', link: '', button_text: '자세히보기', brand_text: 'Humanpartner', banner_type: 'hero', display_order: banners.length + 1, is_active: true });
+            setFormData({ title: '', subtitle: '', image_url: '', mobile_image_url: null, link: '', button_text: '자세히보기', brand_text: 'Humanpartner', display_mode: 'text', banner_type: 'hero', display_order: banners.length + 1, is_active: true });
             setBannerLinkMode('none');
         } else if (activeTab === 'popups') {
             setFormData({ title: '', image_url: '', link: '', start_date: '', end_date: '', display_order: popups.length + 1, is_active: true });
@@ -113,7 +114,7 @@ export const CMSManager: React.FC = () => {
 
     const openEditModal = (item: any) => {
         setEditingItem(item);
-        setFormData({ ...item });
+        setFormData(activeTab === 'banners' ? { ...item, display_mode: item.display_mode || 'text' } : { ...item });
         if (activeTab === 'banners') {
             setBannerLinkMode(getBannerLinkMode(item));
         }
@@ -123,7 +124,7 @@ export const CMSManager: React.FC = () => {
         setShowModal(true);
     };
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField?: 'mobile_image_url') => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!file.type.startsWith('image/')) {
@@ -133,21 +134,29 @@ export const CMSManager: React.FC = () => {
         setUploading(true);
         try {
             const imageUrl = await uploadImage(file);
-            if (activeTab === 'alliance') {
-                setFormData({ ...formData, logo_url: imageUrl });
-            } else {
-                setFormData({ ...formData, image_url: imageUrl });
-            }
+            const field = targetField || (activeTab === 'alliance' ? 'logo_url' : 'image_url');
+            setFormData((current: any) => ({
+                ...current,
+                [field]: imageUrl,
+                ...(activeTab === 'banners' && field === 'image_url' && current.display_mode === 'image' && !current.title?.trim()
+                    ? { title: file.name.replace(/\.[^.]+$/, '') }
+                    : {}),
+            }));
         } catch (error) {
             console.error('Upload failed:', error);
             alert('이미지 업로드에 실패했습니다.');
         } finally {
             setUploading(false);
+            e.target.value = '';
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (activeTab === 'banners' && !formData.image_url?.trim()) {
+            alert('PC 배너 이미지를 등록해주세요.');
+            return;
+        }
         setSaving(true);
         try {
             if (activeTab === 'quickmenu') {
@@ -165,13 +174,25 @@ export const CMSManager: React.FC = () => {
                 }
             } else if (activeTab === 'banners') {
                 const normalizedBannerLink = (formData.link || '').trim();
+                const displayMode = formData.display_mode === 'image' ? 'image' : 'text';
                 const bannerPayload = {
                     ...formData,
+                    title: formData.title?.trim() || (displayMode === 'image' ? '이미지 배너' : ''),
                     banner_type: 'hero',
                     tab_id: null,
                     link: bannerLinkMode === 'link' ? normalizedBannerLink : '',
                     target_product_code: bannerLinkMode === 'product' ? (formData.target_product_code || null) : null,
                 };
+                if (formData.mobile_image_url || editingItem?.mobile_image_url) {
+                    bannerPayload.mobile_image_url = formData.mobile_image_url || null;
+                } else {
+                    delete bannerPayload.mobile_image_url;
+                }
+                if (displayMode === 'image' || editingItem?.display_mode) {
+                    bannerPayload.display_mode = displayMode;
+                } else {
+                    delete bannerPayload.display_mode;
+                }
                 if (editingItem) {
                     await updateBanner(editingItem.id, bannerPayload);
                 } else {
@@ -204,6 +225,10 @@ export const CMSManager: React.FC = () => {
             setShowModal(false);
         } catch (error: any) {
             console.error('Save failed:', error);
+            if (activeTab === 'banners' && /mobile_image_url|display_mode/.test(String(error?.message || ''))) {
+                alert('이미지형 배너를 저장하려면 먼저 Supabase SQL Editor에서 add_banners_image_mode.sql을 실행해주세요.');
+                return;
+            }
             // Show detailed error message
             alert(`저장에 실패했습니다.\n\n오류 내용: ${error.message || JSON.stringify(error)}\n\n(Tip: 만약 'relation "popups" does not exist' 오류라면 데이터베이스에 테이블이 없는 것입니다. SQL 실행이 필요합니다.)`);
         } finally {
@@ -315,7 +340,7 @@ export const CMSManager: React.FC = () => {
                                 <GripVertical size={20} className="text-slate-300 cursor-grab" />
 
                                 {((activeTab === 'banners' || activeTab === 'popups') && item.image_url) && (
-                                    <img src={item.image_url} alt={item.title} className="w-20 h-12 object-cover rounded" />
+                                    <img src={item.image_url} alt={item.title} className={`w-20 h-12 rounded ${activeTab === 'banners' && item.display_mode === 'image' ? 'object-contain bg-white border border-slate-100' : 'object-cover'}`} />
                                 )}
                                 {(activeTab === 'alliance' && item.logo_url) && (
                                     <div className="w-20 h-12 bg-gray-100 flex items-center justify-center rounded-lg">
@@ -335,6 +360,9 @@ export const CMSManager: React.FC = () => {
                                                 }`}>
                                                 {item.banner_type === 'hero' ? '메인 슬라이드' : '프로모션'}
                                             </span>
+                                        )}
+                                        {activeTab === 'banners' && item.display_mode === 'image' && (
+                                            <span className="text-xs px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">이미지형</span>
                                         )}
                                         {activeTab === 'quickmenu' && item.category && (
                                             <span className="text-xs px-2 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-200">
@@ -540,6 +568,38 @@ export const CMSManager: React.FC = () => {
                                         <p className="text-xs text-slate-500 mt-1">프로모션 배너는 GNB 게시글 썸네일 구조로 이관되어 사용하지 않습니다.</p>
                                     </div>
                                     <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">슬라이드 표시 방식</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { value: 'text', label: '문구형', description: '이미지 위에 제목과 버튼 표시' },
+                                                { value: 'image', label: '이미지형', description: '이미지 전체를 그대로 표시' },
+                                            ].map((mode) => (
+                                                <button
+                                                    key={mode.value}
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, display_mode: mode.value })}
+                                                    className={`rounded-lg border p-3 text-left transition-colors ${formData.display_mode === mode.value ? 'border-[#001E45] bg-blue-50 text-[#001E45]' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                                                >
+                                                    <span className="block text-sm font-semibold">{mode.label}</span>
+                                                    <span className="block text-xs mt-1 opacity-70">{mode.description}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {formData.display_mode === 'image' ? (
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">관리용 이름 · 이미지 설명 <span className="font-normal text-slate-400">(선택)</span></label>
+                                            <input
+                                                type="text"
+                                                value={formData.title || ''}
+                                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                                placeholder="비우면 '이미지 배너'로 저장"
+                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">새 이미지를 올리면 파일명이 자동 입력됩니다. 화면에는 표시되지 않습니다.</p>
+                                        </div>
+                                    ) : <>
+                                    <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">브랜드 텍스트</label>
                                         <input
                                             type="text"
@@ -569,8 +629,9 @@ export const CMSManager: React.FC = () => {
                                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
                                         />
                                     </div>
+                                    </>}
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">배너 이미지</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">PC 배너 이미지</label>
                                         <input
                                             type="file"
                                             ref={fileInputRef}
@@ -580,7 +641,7 @@ export const CMSManager: React.FC = () => {
                                         />
                                         {formData.image_url ? (
                                             <div className="relative">
-                                                <img src={formData.image_url} alt="Banner" className="w-full h-32 object-cover rounded-lg" />
+                                                <img src={formData.image_url} alt="배너 미리보기" className={`w-full rounded-lg ${formData.display_mode === 'image' ? 'h-40 object-contain bg-white border border-slate-200' : 'h-32 object-cover'}`} />
                                                 <button
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, image_url: '' })}
@@ -606,8 +667,45 @@ export const CMSManager: React.FC = () => {
                                                 )}
                                             </button>
                                         )}
+                                        <p className="text-xs text-slate-500 mt-2">{formData.display_mode === 'image' ? '이미지형은 잘라내지 않고 전체를 보여줍니다. 남는 공간은 흰색으로 표시됩니다.' : '권장 크기 2400 × 1100px'} · 모바일 이미지가 없으면 이 이미지가 사용됩니다.</p>
                                     </div>
                                     <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">모바일 배너 이미지 <span className="font-normal text-slate-400">(선택)</span></label>
+                                        <input
+                                            type="file"
+                                            ref={mobileImageInputRef}
+                                            accept="image/*"
+                                            onChange={(e) => handleImageUpload(e, 'mobile_image_url')}
+                                            className="hidden"
+                                        />
+                                        {formData.mobile_image_url ? (
+                                            <div className="relative w-36">
+                                                <img src={formData.mobile_image_url} alt="모바일 배너 미리보기" className={`w-36 h-48 rounded-lg ${formData.display_mode === 'image' ? 'object-contain bg-white border border-slate-200' : 'object-cover'}`} />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, mobile_image_url: null })}
+                                                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                                                    aria-label="모바일 배너 이미지 삭제"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => mobileImageInputRef.current?.click()}
+                                                disabled={uploading}
+                                                className="w-full h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-[#001E45] transition-colors disabled:opacity-50"
+                                            >
+                                                {uploading ? <Loader2 className="animate-spin text-[#001E45]" size={20} /> : <>
+                                                    <Upload className="text-slate-400" size={20} />
+                                                    <span className="text-sm text-slate-500">모바일 이미지 업로드</span>
+                                                </>}
+                                            </button>
+                                        )}
+                                        <p className="text-xs text-slate-500 mt-2">권장 크기 1080 × 1600px · 비워두면 PC 이미지를 사용합니다.{formData.display_mode === 'image' && ' 가로형 PC 이미지는 모바일에서 작게 보일 수 있습니다.'}</p>
+                                    </div>
+                                    {formData.display_mode !== 'image' && <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">버튼 텍스트</label>
                                         <input
                                             type="text"
@@ -615,7 +713,7 @@ export const CMSManager: React.FC = () => {
                                             onChange={(e) => setFormData({ ...formData, button_text: e.target.value })}
                                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
                                         />
-                                    </div>
+                                    </div>}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">연결 방식</label>
                                         <div className="grid grid-cols-3 gap-2">
@@ -639,7 +737,7 @@ export const CMSManager: React.FC = () => {
                                             ))}
                                         </div>
                                         <p className="text-xs text-slate-500 mt-2">
-                                            배너 클릭 시 이동할 대상을 선택합니다. 직접 링크와 상품 연결은 동시에 사용하지 않습니다.
+                                            {formData.display_mode === 'image' ? '연결 대상을 선택하면 이미지 전체를 클릭할 수 있습니다. 연결하지 않아도 됩니다.' : '배너 클릭 시 이동할 대상을 선택합니다. 직접 링크와 상품 연결은 동시에 사용하지 않습니다.'}
                                         </p>
                                     </div>
                                     {bannerLinkMode === 'link' && (
@@ -954,11 +1052,11 @@ export const CMSManager: React.FC = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={saving}
+                                    disabled={saving || uploading}
                                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#001E45] text-white rounded-lg hover:bg-[#001E45] disabled:bg-slate-400"
                                 >
-                                    {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                                    저장
+                                    {saving || uploading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                    {uploading ? '업로드 중' : '저장'}
                                 </button>
                             </div>
                         </form>
@@ -970,4 +1068,3 @@ export const CMSManager: React.FC = () => {
 };
 
 export default CMSManager;
-
