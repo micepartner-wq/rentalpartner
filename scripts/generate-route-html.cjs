@@ -471,7 +471,9 @@ function buildHtml(page) {
   html = replaceTag(html, /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/>/s, `    <meta name="twitter:image" content="${escapeHtml(pageImage)}" />`);
   html = setRobots(html, page.robots);
   html = html.replace(STRUCTURED_DATA_MARKER, renderStructuredData(page.structuredData || []));
-  html = html.replace(ROOT_MARKER, page.bodyHtml ? `\n${page.bodyHtml}\n    ` : '');
+  // 정적 본문은 data-prerender 로 감싸 index.html 의 CSS 가 화면에서 숨긴다(검색엔진은 그대로 읽음).
+  // 함수 형태로 치환해 본문 안의 "$" 문자가 치환 패턴으로 해석되지 않게 한다.
+  html = html.replace(ROOT_MARKER, () => (page.bodyHtml ? `\n<div data-prerender="true">${page.bodyHtml}</div>\n    ` : ''));
   return html;
 }
 
