@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, ShoppingBag, ChevronDown } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Container } from "../ui/Container";
 import {
@@ -175,11 +175,51 @@ export const Header: React.FC = () => {
   const [allMenuItems, setAllMenuItems] = useState<NavMenuItem[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDesktopMenu, setShowDesktopMenu] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   // Removed showNotifications state as it is now inside NotificationDropdown
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [gnbSectionTabs, setGnbSectionTabs] =
     useState<TabMenuItem[]>(DEFAULT_GNB_TABS);
+
+  useEffect(() => {
+    setShowAccountMenu(false);
+    setShowDesktopMenu(false);
+    setIsHeaderVisible(true);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    let previousY = window.scrollY;
+    let direction = 0;
+    let distance = 0;
+
+    const handleScroll = () => {
+      const currentY = Math.max(0, window.scrollY);
+      const change = currentY - previousY;
+      previousY = currentY;
+
+      if (currentY <= 40 || showMobileMenu || showDesktopMenu || showAccountMenu) {
+        distance = 0;
+        setIsHeaderVisible(true);
+        return;
+      }
+
+      const nextDirection = Math.sign(change);
+      if (nextDirection === 0) return;
+      distance = nextDirection === direction ? distance + Math.abs(change) : Math.abs(change);
+      direction = nextDirection;
+
+      if (distance >= 4) {
+        if (nextDirection < 0) setIsHeaderVisible(true);
+        else if (currentY > 120) setIsHeaderVisible(false);
+        distance = 0;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [showMobileMenu, showDesktopMenu, showAccountMenu]);
 
   const resolveGnbTabPath = (tab: TabMenuItem) => {
     const raw = (tab.link || "").trim();
@@ -285,10 +325,10 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="w-full bg-white sticky top-0 z-[100] transition-all duration-300">
+    <header className={`w-full bg-white pointer-events-auto transition-transform duration-300 ease-out motion-reduce:transition-none ${isHeaderVisible ? '' : '-translate-y-full pointer-events-none'}`}>
       <div className={`w-full bg-white ${location.pathname === '/' ? '' : 'border-b border-gray-200 shadow-sm'}`}>
         {/* Top Utility Links - Premium Subtle Style */}
-        <div className="hidden md:block bg-[#F8F9FA] border-b border-gray-100 py-2">
+        <div className="hidden md:block xl:hidden bg-[#F8F9FA] border-b border-gray-100 py-2">
           <Container>
             <div className="flex justify-end gap-5 text-[12px] text-gray-500 font-medium items-center">
               {user ? (
@@ -361,9 +401,9 @@ export const Header: React.FC = () => {
         </div>
 
         {/* Main Header Area */}
-        <div className="h-[54px] md:h-[72px] bg-white border-b border-gray-100 shadow-sm md:bg-white/80 md:shadow-none md:backdrop-blur-md relative z-50 transition-all duration-300">
+        <div className="h-[54px] md:h-[72px] xl:h-[82px] bg-white border-b border-gray-100 relative z-50">
           <Container className="h-full">
-            <div className="h-full flex items-center justify-between gap-4 md:gap-8">
+            <div className="h-full flex items-center justify-between gap-4 xl:gap-7">
               {/* Logo and Subtitle */}
               <Link
                 to="/"
@@ -377,10 +417,37 @@ export const Header: React.FC = () => {
                 />
               </Link>
 
-              <div className="hidden md:block flex-1" />
+              <nav className="hidden xl:flex h-full items-center gap-1 flex-1 ml-7" aria-label="주요 메뉴">
+                <div
+                  className="h-full flex items-center"
+                  onMouseEnter={() => setShowDesktopMenu(true)}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setShowDesktopMenu(false); navigate('/products'); }}
+                    onFocus={() => setShowDesktopMenu(true)}
+                    aria-expanded={showDesktopMenu}
+                    className={`h-full inline-flex items-center gap-2 px-3 text-[15px] font-semibold whitespace-nowrap transition-colors ${showDesktopMenu ? 'text-[#00659b]' : 'text-[#102a47] hover:text-[#00659b]'}`}
+                  >
+                    렌탈 상품 <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                {gnbSectionTabs.map((tab) => {
+                  const path = resolveGnbTabPath(tab);
+                  const isExternal = /^https?:\/\//i.test(path);
+                  const className = `px-3 text-[14px] font-medium whitespace-nowrap transition-colors ${!isExternal && isGnbSectionActive(path) ? 'text-[#00659b]' : 'text-slate-600 hover:text-[#00659b]'}`;
+                  return isExternal ? (
+                    <a key={tab.id || `${tab.name}-${path}`} href={path} target="_blank" rel="noopener noreferrer" onMouseEnter={() => setShowDesktopMenu(false)} className={className}>{tab.name}</a>
+                  ) : (
+                    <Link key={tab.id || `${tab.name}-${path}`} to={path} onMouseEnter={() => setShowDesktopMenu(false)} className={className}>{tab.name}</Link>
+                  );
+                })}
+              </nav>
+
+              <div className="hidden md:block xl:hidden flex-1" />
 
               {/* Right Aligned Area: Search + Actions */}
-              <div className="flex items-center gap-1 md:gap-6 justify-end">
+              <div className="flex items-center gap-1 xl:gap-4 justify-end">
                 {/* Search Bar (Desktop only, mobile relies on BottomNav) */}
                 <form 
                   onSubmit={(e) => {
@@ -390,13 +457,14 @@ export const Header: React.FC = () => {
                       navigate(`/search?q=${encodeURIComponent(target.value.trim())}`);
                     }
                   }}
-                  className="hidden md:flex flex-none relative group w-[320px]"
+                  className="hidden md:flex flex-none relative group w-[320px] xl:w-[210px] 2xl:w-[250px]"
+                  onMouseEnter={() => setShowDesktopMenu(false)}
                 >
                   <input
                     name="q"
                     type="text"
                     placeholder="무엇을 도와드릴까요?"
-                    className="w-full h-[40px] md:h-[44px] pl-6 pr-12 rounded-full bg-[#f4f7fa] border-none focus:ring-2 focus:ring-slate-200 focus:bg-white transition-all text-[14px] md:text-sm text-slate-700 placeholder-slate-400/80 text-ellipsis overflow-hidden whitespace-nowrap"
+                    className="w-full h-[40px] md:h-[44px] pl-5 pr-11 rounded-full bg-[#f3f6f9] border border-transparent focus:border-slate-200 focus:ring-0 focus:bg-white transition-all text-[13px] text-slate-700 placeholder-slate-400 text-ellipsis overflow-hidden whitespace-nowrap"
                   />
                   <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#001E45] transition-colors">
                     <Search className="w-4 h-4 md:w-5 md:h-5" />
@@ -404,13 +472,39 @@ export const Header: React.FC = () => {
                 </form>
 
                 {/* Actions (Both Mobile & Desktop) */}
-                <div className="flex items-center gap-0 relative z-50">
+                <div className="flex items-center gap-0 relative z-50" onMouseEnter={() => setShowDesktopMenu(false)}>
                   <Link
                     to={user ? "/mypage" : "/login"}
-                    className="hidden md:flex w-10 h-10 md:w-12 md:h-12 items-center justify-center text-gray-800 transition-colors rounded-full hover:bg-gray-100"
+                    className="hidden md:flex xl:hidden w-10 h-10 md:w-12 md:h-12 items-center justify-center text-gray-800 transition-colors rounded-full hover:bg-gray-100"
+                    aria-label={user ? '마이페이지' : '로그인'}
                   >
                     <ProfileIcon className="w-6 h-6 md:w-7 md:h-7" />
                   </Link>
+                  <div className="hidden xl:block relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowAccountMenu((value) => !value)}
+                      aria-label="계정 메뉴"
+                      aria-expanded={showAccountMenu}
+                      className="w-10 h-10 flex items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 transition-colors"
+                    >
+                      <ProfileIcon className="w-6 h-6" />
+                    </button>
+                    {showAccountMenu && (
+                      <>
+                        <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="계정 메뉴 닫기" onClick={() => setShowAccountMenu(false)} />
+                        <div className="absolute right-0 top-full mt-3 w-52 rounded-2xl border border-slate-100 bg-white p-2 shadow-[0_18px_48px_rgba(7,35,65,0.16)] z-50 text-sm">
+                          {user && <p className="px-3 py-2 text-xs text-slate-500 truncate">{user.displayName || user.email}</p>}
+                          <Link to={user ? '/mypage' : '/login'} className="block rounded-lg px-3 py-2.5 hover:bg-slate-50">{user ? '마이페이지' : '로그인'}</Link>
+                          {!user && <Link to="/signup" className="block rounded-lg px-3 py-2.5 hover:bg-slate-50">회원가입</Link>}
+                          <Link to="/quote-cart" className="block rounded-lg px-3 py-2.5 hover:bg-slate-50">장바구니</Link>
+                          <Link to="/cs" className="block rounded-lg px-3 py-2.5 hover:bg-slate-50">고객센터</Link>
+                          {user && <button type="button" onClick={() => { setShowAccountMenu(false); logout(); }} className="w-full text-left rounded-lg px-3 py-2.5 hover:bg-slate-50">로그아웃</button>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <Link to="/quote-cart" aria-label="장바구니" className="hidden xl:flex w-10 h-10 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 transition-colors"><ShoppingBag className="w-5 h-5" /></Link>
                   <div className="relative z-[60]">
                     <NotificationDropdown
                       notifications={notifications}
@@ -430,10 +524,17 @@ export const Header: React.FC = () => {
               </div>
             </div>
           </Container>
+          <div
+            className={`hidden xl:block absolute top-full left-0 w-full z-50 transition-all duration-200 ${showDesktopMenu ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
+            onMouseEnter={() => setShowDesktopMenu(true)}
+            onMouseLeave={() => setShowDesktopMenu(false)}
+          >
+            <FullMenu variant="desktop" items={allMenuItems} onClose={() => setShowDesktopMenu(false)} />
+          </div>
         </div>
 
         {/* Premium GNB - Horizontal Scroll on Mobile, Centered on Desktop */}
-        <div className={`block border-t ${location.pathname === '/' ? '' : 'border-b'} border-gray-100 relative bg-white z-40`}>
+        <div className={`block xl:hidden border-t ${location.pathname === '/' ? '' : 'border-b'} border-gray-100 relative bg-white z-40`}>
           <Container>
             <div className="relative flex justify-start w-full h-[44px] md:h-[56px] transition-all duration-300">
               <nav className="flex h-full items-stretch justify-start gap-1 min-[375px]:gap-2 sm:gap-6 md:gap-2 w-max min-w-full md:w-auto overflow-x-auto md:overflow-visible no-scrollbar scroll-smooth snap-x md:-ml-4 px-0">

@@ -3,9 +3,7 @@ import { Link } from "react-router-dom";
 import type { Product } from "../../src/api/productApi";
 import { usePriceDisplay } from "../../src/context/PriceDisplayContext";
 import {
-  getPublicPriceClassName,
   getPublicPriceText,
-  INQUIRY_PRICE_TEXT_CLASS,
   isInquiryPriceMode,
   isVisiblePriceMode,
 } from "../../src/utils/priceDisplay";
@@ -34,9 +32,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, badgeLabel, b
   const { mode, loading } = usePriceDisplay();
   // 4:3 안에 거의 맞는 가로형 사진은 꽉 채우고, 그 외(세로로 긴 제품컷 등)는 잘리지 않게 전체를 보여준다.
   const [fillFrame, setFillFrame] = useState(false);
+  const showVariableQuoteText =
+    !loading && (isInquiryPriceMode(mode) || typeof product.price !== "number" || !Number.isFinite(product.price) || product.price <= 0);
   const showDiscount =
-    !loading && !isInquiryPriceMode(mode) && !!product.discount_rate && product.discount_rate > 0;
-  const description = product.short_description?.trim();
+    !loading && !showVariableQuoteText && !!product.discount_rate && product.discount_rate > 0;
 
   return (
     <Link
@@ -76,19 +75,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, badgeLabel, b
         <h3 className="line-clamp-2 break-keep text-[15px] font-semibold leading-snug text-slate-900 md:text-base">
           {product.name}
         </h3>
-        {description && <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-500">{description}</p>}
-
         <div className="mt-auto flex items-baseline gap-2 pt-2">
           {showDiscount && <span className="text-sm font-semibold text-red-600">{product.discount_rate}%</span>}
           <span
-            className={getPublicPriceClassName({
-              mode,
-              loading,
-              visibleClass: "text-lg font-semibold text-slate-900",
-              hiddenClass: INQUIRY_PRICE_TEXT_CLASS,
-            })}
+            className={showVariableQuoteText ? "text-[13px] font-medium leading-snug text-slate-600" : "text-lg font-semibold text-slate-900"}
           >
-            {getPublicPriceText({
+            {showVariableQuoteText ? "대여 기간·수량에 따라 비용 상이" : getPublicPriceText({
               amount: product.price,
               mode,
               loading,

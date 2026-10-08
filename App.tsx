@@ -175,7 +175,7 @@ function App() {
               path="/*"
               element={
                 <div className="min-h-screen bg-white">
-                  <div className="print:hidden">
+                  <div className="print:hidden sticky top-0 z-[100] pointer-events-none">
                     <Header />
                   </div>
                   <Suspense fallback={<RouteFallback />}>

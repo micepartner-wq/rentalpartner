@@ -77,7 +77,7 @@ export const QuickMenu: React.FC = () => {
   }
 
   return (
-    <div className="py-12 md:py-16 bg-white overflow-hidden">
+    <div className="py-12 md:pt-8 md:pb-5 bg-white overflow-hidden">
       <Container>
         <div className="relative">
             {/* 2-row Grid for mobile, Flex for desktop */}

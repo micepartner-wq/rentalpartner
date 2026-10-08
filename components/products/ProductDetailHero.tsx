@@ -4,8 +4,8 @@ import type { Product } from "../../src/api/productApi";
 
 const FACTS = [
   { icon: FileText, label: "견적 방식", value: "일정·수량에 맞춘 맞춤 견적" },
-  { icon: Headphones, label: "상담 문의", value: "1800-1985 · 평일 09:00~18:00" },
-  { icon: Handshake, label: "계약", value: "렌탈료 비용 처리 · 수의계약 가능" },
+  { icon: Headphones, label: "상담 문의", value: "1800-1985" },
+  { icon: Handshake, label: "계약", value: "비용 처리 · 수의계약 가능" },
 ];
 
 export const ProductDetailHero: React.FC<{ product: Product }> = ({ product }) => (

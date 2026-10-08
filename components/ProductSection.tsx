@@ -12,6 +12,7 @@ interface ProductSectionProps {
   products: ProductItem[];
   variant?: 'gray' | 'white';
   layoutMode?: string; // Additional prop
+  maxItems?: number;
 }
 
 export const ProductSection: React.FC<ProductSectionProps> = ({
@@ -19,6 +20,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
   categories,
   products,
   variant = 'white',
+  maxItems,
   layoutMode = 'grid-4' // Default
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +36,8 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
   const filteredProducts = activeCategory === '전체'
     ? products
     : products.filter(product => product.category === activeCategory);
+
+  const visibleProducts = maxItems ? filteredProducts.slice(0, maxItems) : filteredProducts;
 
   const allViewCategory = categories.filter(cat => cat && cat !== '전체').join(',');
   const allViewPath = allViewCategory
@@ -80,7 +84,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
           </div>
           <Link
             to={allViewPath}
-            className="text-[1rem] font-semibold text-slate-400 hover:text-[#001E45] transition-colors hidden md:block"
+            className="text-[1rem] font-semibold text-slate-400 hover:text-[#001E45] transition-colors shrink-0 ml-4 text-sm md:text-base"
           >
             전체보기
           </Link>
@@ -91,7 +95,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
           {categories.map((cat, idx) => (
             <button
               key={`${cat}-${idx}`}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => { setActiveCategory(cat); scrollContainerRef.current?.scrollTo({ left: 0 }); }}
               className={`h-[40px] min-w-[100px] px-4 rounded-lg text-[14px] md:text-[15px] font-semibold transition-all border flex-shrink-0 text-center shadow-sm hover:shadow
                 ${activeCategory === cat
                   ? 'bg-[#001E45] text-white border-[#001E45]'
@@ -127,7 +131,7 @@ export const ProductSection: React.FC<ProductSectionProps> = ({
             className="flex gap-2 md:gap-4 overflow-x-auto no-scrollbar scrollbar-hide [&::-webkit-scrollbar]:hidden pb-4"
             style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {filteredProducts.map((product) => (
+            {visibleProducts.map((product) => (
               <Link
                 key={product.id}
                 to={`/products/${product.id}`}

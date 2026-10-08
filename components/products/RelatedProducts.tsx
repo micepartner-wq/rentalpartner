@@ -30,10 +30,15 @@ export const RelatedProducts: React.FC<{ product: Product }> = ({ product }) => 
   if (items.length === 0) return null;
 
   return (
-    <section className="mt-14" aria-labelledby="related-products-title">
-      <h2 id="related-products-title" className="mb-5 text-xl font-bold text-slate-900 md:text-2xl">
-        함께 보면 좋은 상품
-      </h2>
+    <section className="mt-12 border-t border-slate-200 pt-10 lg:mt-16 lg:pt-12" aria-labelledby="related-products-title">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold tracking-[0.18em] text-[#001E45]">MORE PRODUCTS</p>
+          <h2 id="related-products-title" className="mt-2 text-xl font-bold text-slate-900 md:text-2xl">함께 보면 좋은 상품</h2>
+          <p className="mt-2 text-sm text-slate-500">비슷한 상품을 살펴보고 필요한 구성을 비교해 보세요.</p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">{items.length}개 상품</span>
+      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
         {items.map((item) => {
           const root = rootOf(item);

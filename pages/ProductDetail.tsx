@@ -510,6 +510,58 @@ const OptionListTypeA = ({
   );
 };
 
+const MAX_PRODUCT_OPTION_QUANTITY = 99;
+
+const ProductOptionQuantityInput = ({
+  quantity,
+  label,
+  onChange,
+}: {
+  quantity: number;
+  label: string;
+  onChange: (quantity: number) => void;
+}) => {
+  const [draft, setDraft] = useState(String(quantity));
+
+  useEffect(() => {
+    setDraft(String(quantity));
+  }, [quantity]);
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.value;
+    if (!/^\d*$/.test(next)) return;
+    if (next === "") {
+      setDraft("");
+      return;
+    }
+    const bounded = Math.min(Number(next), MAX_PRODUCT_OPTION_QUANTITY);
+    setDraft(String(bounded));
+    if (bounded !== quantity) onChange(bounded);
+  };
+
+  const handleBlur = () => {
+    const next = draft === "" ? 0 : Math.min(Number(draft), MAX_PRODUCT_OPTION_QUANTITY);
+    setDraft(String(next));
+    if (next !== quantity) onChange(next);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      autoComplete="off"
+      value={draft}
+      onChange={handleChange}
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={handleBlur}
+      onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+      aria-label={`${label} 수량 입력, 최대 99개`}
+      className={`h-full w-10 border-x border-slate-200 bg-transparent text-center text-sm font-semibold outline-none focus:bg-slate-50 ${quantity > 0 ? "text-[#001E45]" : "text-slate-900"}`}
+    />
+  );
+};
+
 const ProductOptionGroups = ({
   groups,
   quantities,
@@ -520,12 +572,15 @@ const ProductOptionGroups = ({
   onUpdate: (groupName: string, valueName: string, quantity: number) => void;
 }) => (
   <div className="space-y-5">
-    {groups.map((group) => (
+    {groups.map((group, index) => (
       <section key={group.name} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
-            <p className="mt-1 text-sm text-slate-500">옵션별 수량을 바로 선택해서 같은 상품 안에 함께 담을 수 있습니다.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-900">{group.name}</h3>
+              {index === 0 && <span className="rounded-md bg-[#001E45] px-2 py-1 text-xs font-bold text-white">필수 선택</span>}
+            </div>
+            <p className="mt-1 text-sm text-slate-500">{index === 0 ? "견적 요청 전 전체 옵션 중 최소 1개의 수량을 선택해 주세요." : "옵션별 수량을 바로 선택해서 같은 상품 안에 함께 담을 수 있습니다."}</p>
           </div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
             {group.values.length}개 옵션
@@ -537,7 +592,7 @@ const ProductOptionGroups = ({
             const quantity = quantities[buildProductOptionKey(group.name, value.name)] || 0;
 
             return (
-              <div key={`${group.name}-${value.name}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div key={`${group.name}-${value.name}`} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${quantity > 0 ? "border-[#001E45] bg-[#F4F8FD]" : "border-slate-200 bg-white"}`}>
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-900">{value.name}</p>
                   <p className="text-xs text-slate-500">{group.name}</p>
@@ -554,13 +609,16 @@ const ProductOptionGroups = ({
                   >
                     <Minus size={16} />
                   </button>
-                  <span className="w-10 border-x border-slate-200 text-center text-sm font-semibold text-slate-900">
-                    {quantity}
-                  </span>
+                  <ProductOptionQuantityInput
+                    quantity={quantity}
+                    label={value.name}
+                    onChange={(next) => onUpdate(group.name, value.name, next)}
+                  />
                   <button
                     type="button"
-                    onClick={() => onUpdate(group.name, value.name, quantity + 1)}
-                    className="flex h-full w-10 items-center justify-center text-slate-600 hover:bg-slate-50"
+                    onClick={() => onUpdate(group.name, value.name, Math.min(MAX_PRODUCT_OPTION_QUANTITY, quantity + 1))}
+                    className="flex h-full w-10 items-center justify-center text-slate-600 hover:bg-slate-50 disabled:text-slate-300"
+                    disabled={quantity >= MAX_PRODUCT_OPTION_QUANTITY}
                     aria-label={`${value.name} 수량 늘리기`}
                   >
                     <Plus size={16} />
@@ -596,8 +654,12 @@ const CombinationProductOptionGroups = ({
 
         return (
           <section key={group.name} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <h3 className="text-[15px] font-bold text-slate-900">{group.name}</h3>
+            <div className="mb-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-[15px] font-bold text-slate-900">{group.name}</h3>
+                {index === 0 && <span className="rounded-md bg-[#001E45] px-2 py-1 text-xs font-bold text-white">필수 선택</span>}
+              </div>
+              {index === 0 && <p className="mt-1 text-sm text-slate-500">견적 요청 전 옵션을 차례로 선택해 구성 1개 이상을 추가해 주세요.</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               {group.values.map((value) => {
@@ -855,7 +917,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const mainPriceText = getPublicPriceText({ amount: product?.price, mode: priceDisplayMode, loading: priceDisplayLoading, suffix: "원" });
   const totalPriceText = getPublicPriceText({ amount: totalPrice, mode: priceDisplayMode, loading: priceDisplayLoading });
-  const guideDescription = isInquiryMode ? "상세페이지 하단 구성품을 확인하고 장바구니에 담으시면 담당자가 확인하여 견적 조건과 배송 일정을 접수해 드립니다." : "상세페이지 하단 구성품을 선택하고 장바구니에 담으시면 대여 일정, 설치 장소 정보 등을 입력하실 수 있습니다.";
+  const guideDescription = isInquiryMode ? "상품 구성과 수량을 확인하고 장바구니에 담으시면 담당자가 견적 조건과 배송 일정을 안내해 드립니다." : "상품 구성과 수량을 선택하고 장바구니에 담으시면 대여 일정, 설치 장소 정보 등을 입력하실 수 있습니다.";
           const summaryRows: SummaryRow[] = [
     ...(isCombinationOptionMode && combinationSets.length > 0
       ? [{ label: product?.name || "상품", value: <span className="text-gray-900 font-bold">{requestedQuantity}개</span> }]
@@ -996,7 +1058,7 @@ export const ProductDetailPage: React.FC = () => {
         <link rel="canonical" href={canonicalUrl} />
         <script type="application/ld+json">{toJsonLd({ "@context": "https://schema.org", "@graph": [buildBreadcrumbJsonLd([{ name: "홈", item: `${SITE_URL}/` }, { name: "렌탈 상품 목록", item: `${SITE_URL}/products` }, { name: product.name, item: canonicalUrl }]), buildProductJsonLd({ name: product.name, description: seoDescription, url: canonicalUrl, image: seoImage, category: product.category, sku: product.id, price: product.price, stock: product.stock, includeOffers: !priceDisplayLoading && isVisiblePriceMode(priceDisplayMode) })] })}</script>
       </Helmet>
-      <div className="pt-8 pb-8 bg-gray-50 min-h-screen">
+      <div className="min-h-screen bg-gray-50 pt-8 pb-36 lg:pb-14">
         <Container>
           <nav className="mb-6">
             <ol className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
@@ -1137,54 +1199,69 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="bg-white rounded-[24px] shadow-sm overflow-hidden border border-gray-100">
+              <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm" aria-label="상품 정보">
                 <div className="flex border-b border-gray-100">
                   {[{ id: "detail", label: "제품 상세정보" }, { id: "guide", label: "대여 안내" }].map((tab) => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 py-5 font-semibold text-[15px] transition-colors relative ${activeTab === tab.id ? "text-[#001E45] bg-slate-50/50" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"}`}>
+                    <button key={tab.id} type="button" aria-pressed={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex-1 py-5 text-[15px] font-semibold transition-colors ${activeTab === tab.id ? "bg-slate-50/50 text-[#001E45]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
                       {tab.label}
-                      {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#001E45]" />}
+                      {activeTab === tab.id && <span className="absolute inset-x-0 bottom-0 h-[3px] bg-[#001E45]" />}
                     </button>
                   ))}
                 </div>
                 <div className="min-h-[300px] p-6 sm:p-10">
-                  {activeTab === "detail" && (product.description ? <div className="prose prose-slate max-w-none w-full [&>p]:m-0 [&>img]:w-full [&>img]:m-0 [&>img]:rounded-xl" dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, "<br/>") }} /> : <div className="flex flex-col items-center justify-center py-20 text-gray-400 space-y-4"><Package size={48} className="text-gray-200" /><p>상세정보를 준비중입니다.</p></div>)}
+                  {activeTab === "detail" && (
+                    <div>
+                      <div className="mb-8">
+                        <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#001E45]">PRODUCT INFORMATION</span>
+                        <h2 className="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">상품을 자세히 살펴보세요</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">상세 사양과 대여 진행 방법을 확인할 수 있습니다.</p>
+                      </div>
+                      {product.description ? <div className="prose prose-slate max-w-none w-full leading-relaxed [&>p]:m-0 [&>img]:m-0 [&>img]:w-full [&>img]:rounded-xl" dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, "<br/>") }} /> : <div className="flex flex-col items-center justify-center space-y-3 rounded-2xl bg-slate-50 py-20 text-slate-500"><Package size={40} className="text-slate-300" /><p className="font-medium">상세정보를 준비중입니다.</p></div>}
+                    </div>
+                  )}
                   {activeTab === "guide" && (
-                    <article className="mx-auto max-w-3xl space-y-10 text-[15px] leading-8 text-slate-600">
-                      <section className="space-y-4">
-                        <span className="inline-block bg-[#001E45]/10 text-[#001E45] px-3 py-1 rounded-full text-xs font-bold">대여 안내</span>
-                        <h4 className="text-2xl font-bold text-slate-900">간편하고 체계적인<br/>렌탈 견적 요청 절차</h4>
-                        <p className="text-[15px] text-slate-600">{guideDescription}</p>
-                      </section>
-                      <section className="border-t border-slate-100 pt-8">
-                        <h5 className="text-lg font-bold text-slate-900 mb-6">견적 요청 진행 단계</h5>
-                        <div className="grid gap-6 sm:grid-cols-2">
-                          <div className="bg-slate-50 p-5 rounded-2xl"><div className="text-[#001E45] font-bold text-xl mb-2">01</div><h6 className="font-bold text-slate-900">견적 요청 요약</h6><p className="mt-2 text-sm text-slate-600 leading-relaxed">상품 구성과 수량을 선택해 장바구니에 담아 주세요.</p></div>
-                          <div className="bg-slate-50 p-5 rounded-2xl"><div className="text-[#001E45] font-bold text-xl mb-2">02</div><h6 className="font-bold text-slate-900">담당자 배정</h6><p className="mt-2 text-sm text-slate-600 leading-relaxed">접수된 정보를 확인하여 담당자가 배정됩니다.</p></div>
-                          <div className="bg-slate-50 p-5 rounded-2xl"><div className="text-[#001E45] font-bold text-xl mb-2">03</div><h6 className="font-bold text-slate-900">견적 확정</h6><p className="mt-2 text-sm text-slate-600 leading-relaxed">세부 사양을 확정하고 견적을 안내해 드립니다.</p></div>
-                          <div className="bg-slate-50 p-5 rounded-2xl"><div className="text-[#001E45] font-bold text-xl mb-2">04</div><h6 className="font-bold text-slate-900">계약 및 배송</h6><p className="mt-2 text-sm text-slate-600 leading-relaxed">계약 체결 후 약속된 일정에 설치를 진행합니다.</p></div>
-                        </div>
-                      </section>
+                    <article className="space-y-8 text-slate-600">
+                      <div>
+                        <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#001E45]">RENTAL GUIDE</span>
+                        <h2 className="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">렌탈 견적 요청, 이렇게 진행됩니다</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">{guideDescription}</p>
+                      </div>
+                      <ol className="grid gap-4 sm:grid-cols-2">
+                        {[
+                          { title: "견적 요청 요약", desc: "상품 구성과 수량을 선택해 장바구니에 담아 주세요." },
+                          { title: "담당자 배정", desc: "접수된 정보를 확인하여 담당자가 배정됩니다." },
+                          { title: "견적 확정", desc: "세부 사양을 확정하고 견적을 안내해 드립니다." },
+                          { title: "계약 및 배송", desc: "계약 체결 후 약속된 일정에 설치를 진행합니다." },
+                        ].map((step, index) => (
+                          <li key={step.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+                            <span className="block text-xl font-bold text-[#001E45]">{String(index + 1).padStart(2, "0")}</span>
+                            <h3 className="mt-2 font-bold text-slate-900">{step.title}</h3>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">{step.desc}</p>
+                          </li>
+                        ))}
+                      </ol>
                     </article>
                   )}
                 </div>
-              </div>
+              </section>
             </div>
 
             <div className="lg:col-span-5 xl:col-span-4 lg:row-start-1">
               <div className="lg:sticky lg:top-24 space-y-5">
                 {/* Summary Card */}
-                <div className="bg-white rounded-[24px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col relative">
-                  <div className="p-7">
-                    <h3 className="font-semibold text-lg text-gray-900 mb-2 flex items-center gap-2">
-                      <ShoppingBag size={20} className="text-[#001E45]" />
-                      견적 요청 요약
-                    </h3>
+                <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_12px_36px_rgba(0,30,69,0.08)]" aria-labelledby="quote-summary-title">
+                  <div className="border-b border-slate-100 bg-white px-6 py-6">
+                    <div className="flex items-start gap-3.5">
+                      <ShoppingBag size={22} className="mt-0.5 shrink-0 text-[#001E45]" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <h3 id="quote-summary-title" className="text-lg font-bold text-slate-900">견적 요청 요약</h3>
+                        <p className="mt-1.5 text-[13px] leading-5 text-slate-500 break-keep">선택한 구성과 수량을 확인하고 맞춤 견적을 요청하세요.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
 
-                  <p className="text-[14px] text-gray-500 leading-relaxed mb-6 break-keep">
-                    선택하신 구성을 바탕으로 대여 일정과 요청사항을 접수해 주시면 맞춤 렌탈 조건을 안내해 드립니다.
-                  </p>
-
-                  <div className="space-y-4">
+                  <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                     {displaySummaryRows.filter(row => {
                       const val = String(row.value);
                       return !val.includes("0개");
@@ -1196,7 +1273,7 @@ export const ProductDetailPage: React.FC = () => {
                     ))}
                     
                     {selectedSummary.length > 0 && (
-                      <div className="pt-3 border-t border-gray-50 space-y-2">
+                      <div className="space-y-2 border-t border-slate-200 pt-3">
                         {selectedSummary.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-[12.5px] text-gray-600">
                             <span className="truncate flex-1">{item.name}</span>
@@ -1238,10 +1315,10 @@ export const ProductDetailPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-end">
+                  <div className="mt-6 flex items-end justify-between gap-3 border-t border-slate-200 pt-5">
                     <div className="flex flex-col">
                       <span className="font-medium text-gray-600 text-[13px]">예상 견적 비용</span>
-                      <span className="text-[11px] text-teal-600 font-medium mt-0.5">※ 1일 기준 단가 (장기/대량 렌탈 시 특별 할인)</span>
+                      <span className="mt-1 text-[11px] font-medium leading-4 text-slate-500">1일 기준 · 장기/대량 렌탈 별도 상담</span>
                     </div>
                     <span className={getPublicPriceClassName({
                       mode: priceDisplayMode,
@@ -1253,23 +1330,23 @@ export const ProductDetailPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-5 space-y-2.5">
                     <button 
                       onClick={() => openActionConfirm('booking')} 
                       disabled={isBooking || product.stock === 0} 
-                      className="w-full py-4 rounded-xl bg-[#001E45] text-white font-bold text-base hover:bg-[#002D66] transition-all flex items-center justify-center gap-2 disabled:bg-gray-400"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#001E45] py-4 text-base font-bold text-white transition-colors hover:bg-[#002D66] disabled:bg-gray-400"
                     >
                       {isBooking ? <Loader2 className="animate-spin" size={20} /> : "장바구니에서 견적 요청"}
                     </button>
                     <button 
                       onClick={() => openActionConfirm('cart')} 
-                      className="w-full py-4 rounded-xl border border-slate-200 text-[#001E45] font-bold text-base bg-slate-50/50 flex items-center justify-center gap-2 transition-all hover:bg-slate-100"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-4 text-base font-bold text-[#001E45] transition-colors hover:bg-slate-50"
                     >
                       <ShoppingCart size={18} /> 장바구니 담기
                     </button>
                   </div>
 
-                  <p className="mt-6 text-[12px] text-center text-gray-400 leading-relaxed">
+                  <p className="mt-5 text-center text-[12px] leading-relaxed text-slate-500">
                     최종 견적 요청 시 영업일 기준 담당자가 연락드립니다.<br/>
                     <span className="inline-flex items-center gap-1 text-[#001E45] font-medium mt-1 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                       <FileText size={12} />
@@ -1277,10 +1354,10 @@ export const ProductDetailPage: React.FC = () => {
                     </span>
                   </p>
                 </div>
-              </div>
+                </section>
 
               {/* Trust Cards */}
-                <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   {[
                     {
                       icon: "💳",
@@ -1307,8 +1384,8 @@ export const ProductDetailPage: React.FC = () => {
                       desc: "계약 기간별 맞춤 조건"
                     }
                   ].map((card, idx) => (
-                    <div key={idx} className="flex items-center gap-4 rounded-[24px] border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md transition-all">
-                      <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full overflow-hidden ${card.bgColor || 'bg-slate-50 border border-slate-100'}`}>
+                    <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl ${card.bgColor || 'bg-slate-50 border border-slate-100'}`}>
                         {card.img ? (
                           <img
                             src={card.img}
@@ -1320,9 +1397,9 @@ export const ProductDetailPage: React.FC = () => {
                           <span className="text-xl">{card.icon}</span>
                         )}
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900 text-[14.5px] leading-tight">{card.title}</p>
-                        <p className="text-[12.5px] text-gray-500 mt-2 leading-tight">{card.desc}</p>
+                      <div className="mt-3">
+                        <p className="text-[13px] font-semibold leading-snug text-slate-900 break-keep">{card.title}</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-slate-500 break-keep">{card.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -1334,17 +1411,20 @@ export const ProductDetailPage: React.FC = () => {
         </Container>
       </div>
 
-      <div className={`fixed bottom-0 left-0 right-0 overflow-hidden bg-white border-t border-gray-200 rounded-t-[26px] shadow-[0_-8px_24px_rgba(15,23,42,0.1)] z-50 lg:hidden transition-all duration-300 ${mobileBarExpanded ? "max-h-[85vh]" : "max-h-[100px]"}`}>
-        <button onClick={() => setMobileBarExpanded(!mobileBarExpanded)} className="w-full flex flex-col items-center justify-center py-3">
-          <div className="w-10 h-1 bg-gray-200 rounded-full mb-1" />
+      <div className={`fixed inset-x-0 bottom-0 z-[95] overflow-hidden rounded-t-[24px] border border-b-0 border-slate-200 bg-white shadow-[0_-12px_36px_rgba(0,30,69,0.12)] lg:hidden ${mobileBarExpanded ? "max-h-[90dvh]" : "max-h-28"}`}>
+        <button type="button" onClick={() => setMobileBarExpanded(!mobileBarExpanded)} aria-expanded={mobileBarExpanded} aria-label={mobileBarExpanded ? "견적 요약 접기" : "견적 요약 펼치기"} className="flex w-full justify-center py-2.5">
+          <span className="h-1 w-10 rounded-full bg-slate-300" />
         </button>
         {mobileBarExpanded ? (
-          <div className="px-6 pb-8 max-h-[70vh] overflow-y-auto">
-            <div className="flex items-center gap-2 mb-4"><ShoppingBag size={20} className="text-[#001E45]" /><h3 className="font-bold text-lg text-gray-900">견적 요청 요약</h3></div>
-            <SummaryRows rows={displaySummaryRows} />
+          <div className="max-h-[calc(90dvh-24px)] overflow-y-auto px-5 pb-6">
+            <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2"><ShoppingBag size={19} className="text-[#001E45]" /><h3 className="text-lg font-bold text-slate-900">견적 요청 요약</h3></div>
+              <span className="text-xs font-semibold text-slate-500">수량 {requestedQuantity}개</span>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4"><SummaryRows rows={displaySummaryRows} /></div>
             
             {buildBasicComponents().length > 0 && (
-              <div className="mt-4 space-y-1.5">
+              <div className="mt-5 space-y-1.5 border-t border-slate-100 pt-4">
                 <p className="text-xs font-bold text-gray-500 mb-1">기본 구성품</p>
                 {buildBasicComponents().map((comp, idx) => (
                   <div key={idx} className="flex justify-between items-center text-[13px] text-gray-700">
@@ -1360,15 +1440,19 @@ export const ProductDetailPage: React.FC = () => {
                 <SelectedOptionsSection items={selectedSummary} priceDisplayMode={priceDisplayMode} priceDisplayLoading={priceDisplayLoading} />
               </div>
             )}
-            <div className="mt-6 space-y-3">
-              <button onClick={() => openActionConfirm('booking')} className="w-full py-4 rounded-xl bg-[#001E45] text-white font-bold flex items-center justify-center gap-2 shadow-lg">견적 요청하기</button>
-              <button onClick={() => handleAddToQuoteCart()} className="w-full py-4 rounded-xl border border-[#001E45] text-[#001E45] font-bold bg-white flex items-center justify-center gap-2 transition-all hover:bg-slate-50">장바구니 담기</button>
+            <div className="mt-5 flex items-end justify-between gap-3 border-t border-slate-200 pt-4">
+              <span className="text-sm font-medium text-slate-600">예상 견적 비용</span>
+              <span className={getPublicPriceClassName({ mode: priceDisplayMode, loading: priceDisplayLoading, visibleClass: "text-lg font-bold text-[#001E45]", hiddenClass: "text-lg font-bold text-rose-500" })}>{totalPriceText}</span>
+            </div>
+            <div className="mt-5 space-y-2.5">
+              <button type="button" onClick={() => openActionConfirm('booking')} disabled={isBooking || product.stock === 0} className="flex w-full items-center justify-center rounded-xl bg-[#001E45] py-4 font-bold text-white disabled:bg-slate-400">장바구니에서 견적 요청</button>
+              <button type="button" onClick={() => handleAddToQuoteCart()} className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white py-4 font-bold text-[#001E45]">장바구니 담기</button>
             </div>
           </div>
         ) : (
-          <div className="px-6 pb-8 flex items-center justify-between gap-4">
-            <div className="flex-1 min-w-0"><p className="text-[13px] font-bold text-[#001E45] truncate">{product.name}</p><p className="text-xs text-gray-500">수량 {requestedQuantity}개 선택됨</p></div>
-            <button onClick={() => setMobileBarExpanded(true)} className="px-8 py-3.5 bg-[#001E45] text-white rounded-xl font-bold text-sm shadow-md">견적 확인</button>
+          <div className="flex items-center justify-between gap-4 px-5 pb-5">
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-500">{product.name} · {requestedQuantity}개</p><p className={getPublicPriceClassName({ mode: priceDisplayMode, loading: priceDisplayLoading, visibleClass: "mt-1 text-base font-bold text-[#001E45]", hiddenClass: "mt-1 text-sm font-bold text-rose-500" })}>{totalPriceText}</p></div>
+            <button type="button" onClick={() => setMobileBarExpanded(true)} className="shrink-0 rounded-xl bg-[#001E45] px-5 py-3.5 text-sm font-bold text-white">견적 확인</button>
           </div>
         )}
       </div>
