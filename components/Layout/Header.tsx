@@ -45,32 +45,19 @@ const ProfileIcon = ({ className }: { className?: string }) => (
   <img src="/person.svg" alt="프로필" className={className} />
 );
 
-const DEFAULT_GNB_TABS: TabMenuItem[] = [
-  {
-    name: "공지사항",
-    link: "/notice",
-    display_order: 1,
-    is_active: true,
-  },
-  {
-    name: "이벤트",
-    link: "/event",
-    display_order: 2,
-    is_active: true,
-  },
-  {
-    name: "설치후기",
-    link: "/review",
-    display_order: 3,
-    is_active: true,
-  },
-  {
-    name: "고객센터",
-    link: "/cs",
-    display_order: 4,
-    is_active: true,
-  },
-];
+// 헤더 탭 메뉴는 DB(tab_menu_items)가 유일한 출처다. 예전에는 로딩 전 임시로 보여줄
+// 기본 메뉴가 코드에 박혀 있어서, 이미 지운 메뉴(공지사항/이벤트)가 첫 1초 동안
+// 깜빡이다 사라졌다. 대신 마지막으로 불러온 실제 메뉴를 브라우저에 저장해 뒀다가
+// 다음 방문 첫 화면부터 그대로 보여준다(첫 방문은 불러올 때까지 비어 있음).
+const GNB_TABS_CACHE_KEY = "hmpm:gnb-tabs";
+const readCachedGnbTabs = (): TabMenuItem[] => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(GNB_TABS_CACHE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 const GNB_ROUTE_BY_NAME: Record<string, string> = {
   "공지사항": "/notice",
@@ -181,7 +168,7 @@ export const Header: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [gnbSectionTabs, setGnbSectionTabs] =
-    useState<TabMenuItem[]>(DEFAULT_GNB_TABS);
+    useState<TabMenuItem[]>(readCachedGnbTabs);
 
   useEffect(() => {
     setShowAccountMenu(false);
@@ -305,10 +292,14 @@ export const Header: React.FC = () => {
           getTabMenuItems(),
         ]);
         setAllMenuItems(menuData);
-        setGnbSectionTabs(tabData.length > 0 ? tabData : DEFAULT_GNB_TABS);
+        setGnbSectionTabs(tabData);
+        try {
+          localStorage.setItem(GNB_TABS_CACHE_KEY, JSON.stringify(tabData));
+        } catch {
+          /* 저장 공간이 없거나 막힌 환경 -- 캐시만 건너뜀 */
+        }
       } catch (error) {
         console.error("Failed to load sections:", error);
-        setGnbSectionTabs(DEFAULT_GNB_TABS);
       }
     };
     loadNavItems();
