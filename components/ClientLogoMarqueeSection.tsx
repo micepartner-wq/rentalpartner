@@ -1,8 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { Container } from './ui/Container';
 
-// 현재 public/logos 폴더에 있는 19개의 이미지들입니다.
-const clientsRow1 = [
+const clients = [
   '/logos/1773280725490_v9z9bg.svg',
   '/logos/1773280741121_v0hg30.png',
   '/logos/1773280821120_1dgcuh.png',
@@ -13,9 +12,6 @@ const clientsRow1 = [
   '/logos/1773281297036_vv31o7.jpg',
   '/logos/1773281888199_9vhz9k.png',
   '/logos/1773282781619_fdevih.png',
-];
-
-const clientsRow2 = [
   '/logos/1773282795161_1vvz12.svg',
   '/logos/APwordmark.jpg',
   '/logos/Doosan_Logo.jpg',
@@ -27,49 +23,28 @@ const clientsRow2 = [
   '/logos/logo6.png',
 ];
 
-export const ClientLogoMarqueeSection: React.FC = () => {
-  return (
-    <section className="border-y border-slate-100 bg-white py-10 md:py-16 overflow-hidden">
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 35s linear infinite;
-        }
-        .animate-marquee-reverse {
-          animation: marquee 35s linear infinite reverse;
-        }
-      `}</style>
-      <Container>
-        <div className="text-center mb-10">
-          <p className="text-sm font-bold tracking-widest text-[#001E45] mb-3">비즈니스 파트너</p>
-          <h2 className="text-2xl font-bold text-slate-800 md:text-3xl px-4 break-keep">
-            이미 많은 기업들이 렌탈어때와 함께하고 있습니다
-          </h2>
-        </div>
-      </Container>
-      
-      <div className="relative flex flex-col gap-5 md:gap-8 w-full overflow-hidden">
-        {/* 첫 번째 줄: 왼쪽으로 이동 */}
-        <div className="animate-marquee whitespace-nowrap flex items-center gap-8 md:gap-24 px-6 w-max">
-          {[...clientsRow1, ...clientsRow1, ...clientsRow1, ...clientsRow1].map((logo, i) => (
-            <div key={`r1-${i}`} className="flex h-12 w-[120px] md:h-16 md:w-[170px] items-center justify-center">
-              <img src={logo} alt="Partner Logo" className="max-h-full max-w-full object-contain" />
-            </div>
-          ))}
-        </div>
-        
-        {/* 두 번째 줄: 오른쪽으로 이동 */}
-        <div className="animate-marquee-reverse whitespace-nowrap flex items-center gap-8 md:gap-24 px-6 w-max">
-          {[...clientsRow2, ...clientsRow2, ...clientsRow2, ...clientsRow2].map((logo, i) => (
-            <div key={`r2-${i}`} className="flex h-12 w-[120px] md:h-16 md:w-[170px] items-center justify-center">
-              <img src={logo} alt="Partner Logo" className="max-h-full max-w-full object-contain" />
-            </div>
-          ))}
-        </div>
+export const ClientLogoMarqueeSection: React.FC = () => (
+  <section className="home-service home-service-clients" aria-labelledby="home-service-clients-title">
+    <Container>
+      <div className="home-service-section-heading">
+        <div><p className="home-service-eyebrow">OUR CLIENTS</p><h2 id="home-service-clients-title" className="home-service-title">다양한 현장에서<br />함께해 온 이름들.</h2></div>
+        <p className="home-service-intro">기업과 기관의 공간에<br />렌탈어때가 함께합니다.</p>
       </div>
-    </section>
-  );
-};
+    </Container>
+    <div className="home-service-logo-marquee" aria-label="고객사 및 기관 로고">
+      {[clients.slice(0, 10), clients.slice(10)].map((row, rowIndex) => (
+        <div key={rowIndex} className="home-service-logo-track" data-reverse={rowIndex === 1}>
+          {[0, 1].map(copy => (
+            <div key={copy} className="home-service-logo-group" aria-hidden={copy === 1 || undefined}>
+              {row.map((logo, index) => (
+                <div key={logo} className="home-service-logo-item">
+                  <img src={logo} alt={copy === 0 ? `고객사 및 기관 로고 ${rowIndex * 10 + index + 1}` : ''} loading="lazy" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  </section>
+);

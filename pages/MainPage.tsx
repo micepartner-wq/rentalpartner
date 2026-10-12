@@ -135,20 +135,24 @@ export const MainPage: React.FC = () => {
             )}
 
             <PromoSection />
+            <ClientLogoMarqueeSection />
             {populatedSections.length > 1 && (
-                <section aria-label="상품군별 전체보기" className="bg-white py-10 md:py-14">
+                <section aria-label="상품군별 전체보기" className="home-collections">
                     <Container>
-                        <h2 className="mb-5 text-xl font-semibold tracking-tight text-[#001E45]">더 다양한 렌탈 상품을 찾아보세요</h2>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="home-collections-heading"><div>
+                            <p className="home-discovery-eyebrow">EXPLORE THE COLLECTION</p>
+                            <h2>필요한 만큼,<br />다양한 선택.</h2>
+                        </div><Link to="/products" className="text-sm inline-flex items-center gap-2">전체 상품 <ArrowUpRight size={18} /></Link></div>
+                        <div className="home-collections-grid">
                             {populatedSections.slice(1).map(({ section, products }) => {
                                 const categories = getSectionCategories(section, products).filter(category => category !== '전체').join(',');
                                 const params = new URLSearchParams({ title: section.name });
                                 if (section.id) params.set('sectionId', section.id);
                                 if (categories) params.set('category', categories);
                                 return (
-                                    <Link key={section.id} to={`/products?${params.toString()}`} className="group flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-5 py-5 transition-colors hover:border-[#001E45] hover:bg-slate-50">
-                                        <span className="font-semibold text-slate-800">{section.name}</span>
-                                        <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500 group-hover:text-[#001E45]">전체보기 <ArrowUpRight size={17} /></span>
+                                    <Link key={section.id} to={`/products?${params.toString()}`} className="home-collection">
+                                        <div className="home-collection-image"><img src={products.find(product => product.image_url)?.image_url || '/comp-notebook.svg'} alt="" loading="lazy" /></div>
+                                        <span className="home-collection-label"><span>{section.name}</span><ArrowUpRight size={20} /></span>
                                     </Link>
                                 );
                             })}
@@ -158,7 +162,6 @@ export const MainPage: React.FC = () => {
             )}
             <WhyChooseUsSection />
             <HowItWorksSection />
-            <ClientLogoMarqueeSection />
 
             <BottomCtaSection />
         </main>

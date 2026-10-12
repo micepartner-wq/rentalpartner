@@ -26,10 +26,8 @@ export const PromoSection: React.FC = () => {
   const [posts, setPosts] = useState<BoardPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [atEnd, setAtEnd] = useState(false);
-  const galleryRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ startX: number; scrollLeft: number; moved: boolean } | null>(null);
-  const suppressCardClickRef = useRef(false);
+  const [resetting, setResetting] = useState(false);
+  const movingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,74 +45,40 @@ export const PromoSection: React.FC = () => {
   const showReviews = tabs.some(tab => resolveBoardType(tab) === 'review');
   const reviews = showReviews ? posts.filter(post => post.board_type === 'review').slice(0, 4) : [];
   const newsTabs = tabs.filter(tab => resolveBoardType(tab) !== 'review');
+  const count = reviews.length;
+  const logicalIndex = count ? (activeIndex + count) % count : 0;
+  // Copies on either side keep the next preview visible across the loop boundary.
+  const slides = count > 1 ? [...reviews, ...reviews, ...reviews] : reviews;
+  const trackIndex = count > 1 ? activeIndex + count : 0;
 
   useEffect(() => {
-    const gallery = galleryRef.current;
-    if (!gallery) return;
-    const sync = () => {
-      const cards = Array.from(gallery.querySelectorAll<HTMLElement>('[data-review-card]'));
-      if (!cards.length) return;
-      const end = gallery.scrollLeft >= gallery.scrollWidth - gallery.clientWidth - 2;
-      let nearest = 0;
-      cards.forEach((card, index) => {
-        if (Math.abs(card.offsetLeft - cards[0].offsetLeft - gallery.scrollLeft) <
-          Math.abs(cards[nearest].offsetLeft - cards[0].offsetLeft - gallery.scrollLeft)) nearest = index;
-      });
-      setActiveIndex(end ? cards.length - 1 : nearest);
-      setAtEnd(end);
-    };
-    sync();
-    gallery.addEventListener('scroll', sync, { passive: true });
-    const observer = new ResizeObserver(sync);
-    observer.observe(gallery);
-    return () => { gallery.removeEventListener('scroll', sync); observer.disconnect(); };
-  }, [loading, reviews.length]);
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const drag = dragRef.current;
-      const gallery = galleryRef.current;
-      if (!drag || !gallery) return;
-      const delta = event.clientX - drag.startX;
-      if (Math.abs(delta) > 5) drag.moved = true;
-      if (drag.moved) gallery.scrollLeft = drag.scrollLeft - delta;
-    };
-    const handleMouseUp = () => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      dragRef.current = null;
-      if (drag.moved) {
-        suppressCardClickRef.current = true;
-        window.setTimeout(() => { suppressCardClickRef.current = false; }, 400);
+    if (!movingRef.current || resetting) return;
+    const timer = window.setTimeout(() => {
+      if (activeIndex < 0 || activeIndex >= count) {
+        setResetting(true);
+        setActiveIndex((activeIndex + count) % count);
+      } else {
+        movingRef.current = false;
       }
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
+    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 560);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, count, resetting]);
+
+  useEffect(() => {
+    if (!resetting) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        setResetting(false);
+        movingRef.current = false;
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [resetting]);
 
   const move = (direction: number) => {
-    const gallery = galleryRef.current;
-    if (!gallery) return;
-    const cards = Array.from(gallery.querySelectorAll<HTMLElement>('[data-review-card]'));
-    const target = Math.max(0, Math.min(cards.length - 1, activeIndex + direction));
-    if (!cards[target]) return;
-    gallery.scrollTo({
-      left: cards[target].offsetLeft - cards[0].offsetLeft,
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    });
-  };
-
-  const handleGalleryMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    dragRef.current = {
-      startX: event.clientX,
-      scrollLeft: event.currentTarget.scrollLeft,
-      moved: false,
-    };
+    if (count < 2) return;
+    movingRef.current = true;
+    setActiveIndex(current => Math.max(-1, Math.min(count, current + direction)));
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#001E45]" aria-label="설치후기 불러오는 중" /></div>;
@@ -142,34 +106,32 @@ export const PromoSection: React.FC = () => {
               </Link>
               {reviews.length > 1 && (
                 <div className="mt-8 flex w-full items-center gap-5 lg:mt-auto lg:pt-10">
-                  <span className="text-sm tabular-nums text-slate-400"><span className="font-bold text-[#001E45]">{String(activeIndex + 1).padStart(2, '0')}</span><span className="mx-3">/</span>{String(reviews.length).padStart(2, '0')}</span>
+                  <span className="text-sm tabular-nums text-slate-400"><span className="font-bold text-[#001E45]">{String(logicalIndex + 1).padStart(2, '0')}</span><span className="mx-3">/</span>{String(reviews.length).padStart(2, '0')}</span>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => move(-1)} disabled={activeIndex === 0} aria-label="이전 설치후기" className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-[#001E45] transition-colors hover:border-[#001E45] disabled:cursor-default disabled:opacity-30"><ChevronLeft size={19} /></button>
-                    <button type="button" onClick={() => move(1)} disabled={atEnd} aria-label="다음 설치후기" className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-[#001E45] transition-colors hover:border-[#001E45] disabled:cursor-default disabled:opacity-30"><ChevronRight size={19} /></button>
+                    <button type="button" onClick={() => move(-1)}  aria-label="이전 설치후기" className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-[#001E45] transition-colors hover:border-[#001E45] disabled:cursor-default disabled:opacity-30"><ChevronLeft size={19} /></button>
+                    <button type="button" onClick={() => move(1)}  aria-label="다음 설치후기" className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-[#001E45] transition-colors hover:border-[#001E45] disabled:cursor-default disabled:opacity-30"><ChevronRight size={19} /></button>
                   </div>
                 </div>
               )}
             </div>
             {reviews.length ? (
-              <div ref={galleryRef} role="region" aria-label="설치 사례 갤러리" tabIndex={0}
+              <div role="region" aria-roledescription="carousel" aria-label="설치 사례 갤러리" tabIndex={0}
                 onKeyDown={event => {
                   if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-                    event.preventDefault(); move(event.key === 'ArrowRight' ? 1 : -1);
+                    event.preventDefault();
+                    event.currentTarget.focus({ preventScroll: true });
+                    move(event.key === 'ArrowRight' ? 1 : -1);
                   }
                 }}
-                onMouseDown={handleGalleryMouseDown}
-                onDragStart={event => event.preventDefault()}
-                className="relative flex min-w-0 cursor-grab snap-x snap-mandatory gap-5 overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {reviews.map((post, index) => (
-                  <Link key={post.id || index} to={postPath(post)} data-review-card
-                    onClick={event => {
-                      if (suppressCardClickRef.current) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        suppressCardClickRef.current = false;
-                      }
-                    }}
-                    className="group block w-[86%] shrink-0 snap-start overflow-hidden rounded-[22px] border border-slate-200/70 bg-white md:w-[78%] focus-visible:outline-offset-[-3px]">
+                className="review-gallery min-w-0">
+                <div className="review-gallery-track" data-resetting={resetting} style={{ '--review-index': trackIndex } as React.CSSProperties}>
+                {slides.map((post, index) => (
+                  <article key={index} data-review-card data-active={index === trackIndex}
+                    className="review-gallery-card relative overflow-hidden rounded-[22px] border border-slate-200/70 bg-white">
+                  <Link to={postPath(post)} tabIndex={index === trackIndex ? 0 : -1}
+                    aria-hidden={index !== trackIndex || undefined}
+                    className="group block h-full focus-visible:outline-offset-[-3px]"
+                    style={{ pointerEvents: index === trackIndex ? 'auto' : 'none' }}>
                     <div className="relative aspect-[4/3] overflow-hidden bg-slate-200 md:aspect-[16/10]">
                       {(post.image_url || post.mobile_image_url) ? (
                         <picture>
@@ -177,7 +139,7 @@ export const PromoSection: React.FC = () => {
                           <img src={post.image_url || post.mobile_image_url} alt={post.title} loading="lazy" draggable={false} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.035] motion-reduce:transform-none motion-reduce:transition-none" />
                         </picture>
                       ) : <div className="flex h-full items-center justify-center text-sm text-slate-500">설치 현장 이야기</div>}
-                      <span className="absolute left-5 top-5 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] text-[#001E45]">PROJECT {String(index + 1).padStart(2, '0')}</span>
+                      <span className="absolute left-5 top-5 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] text-[#001E45]">PROJECT {String(index % count + 1).padStart(2, '0')}</span>
                     </div>
                     <div className="p-5 md:p-7">
                       <p className="text-xs font-semibold text-[#26808b]">{post.category || '설치 사례'}</p>
@@ -188,7 +150,19 @@ export const PromoSection: React.FC = () => {
                       </div>
                     </div>
                   </Link>
+                  {index === trackIndex + 1 && (
+                    <button type="button" className="review-gallery-preview"
+                      aria-label={'다음 설치후기 보기: ' + post.title}
+                      onClick={event => {
+                        move(1);
+                        event.currentTarget.closest<HTMLElement>('[role="region"]')?.focus({ preventScroll: true });
+                      }}>
+                    </button>
+                  )}
+                  </article>
                 ))}
+                </div>
+                <p className="sr-only" aria-live="polite" aria-atomic="true">설치후기 {logicalIndex + 1} / {reviews.length}</p>
               </div>
             ) : <div className="flex min-h-[280px] items-center justify-center rounded-2xl bg-white text-sm text-slate-500">새로운 설치 사례를 준비하고 있습니다.</div>}
           </div>

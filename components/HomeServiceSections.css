@@ -1,0 +1,103 @@
+﻿.home-service{padding:100px 0;color:#102b46;word-break:keep-all}
+.home-service :is(h2,h3,p,dl,dd,ol,ul){margin:0}
+.home-service a:focus-visible{outline:3px solid #0d9488;outline-offset:6px}
+.home-service .home-service-eyebrow{margin-bottom:22px;font-size:11px;font-weight:800;letter-spacing:.2em;color:#087d75}
+.home-service .home-service-title{font-size:clamp(28px,3.1vw,44px);font-weight:700;line-height:1.32;letter-spacing:-.055em}
+.home-service .home-service-intro{font-size:15px;line-height:1.9;color:#64717e}
+.home-service-trust{background:#f5f3ee}
+.home-service-trust-layout{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.home-service-trust .home-service-intro{margin-top:26px}
+.home-service-values{margin-top:36px!important;border-top:1px solid #d8dad7}
+.home-service-values>div{padding:21px 0;border-bottom:1px solid #d8dad7}
+.home-service-values dt{font-size:16px;font-weight:700;margin-bottom:8px}
+.home-service-values dd{font-size:14px;line-height:1.8;color:#64717e;max-width:390px}
+.home-service-certificates{padding:32px;background:#eae8e1}
+.home-service-cert-heading{font-size:13px;font-weight:700;margin-bottom:24px!important}
+.home-service-cert-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.home-service-cert{text-decoration:none;color:inherit;min-width:0}
+.home-service-cert-image{height:250px;background:#fff;display:flex;align-items:center;justify-content:center;padding:15px;border:1px solid #deded6}
+.home-service-cert-image img{width:100%;height:100%;object-fit:contain}
+.home-service-cert>span{display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:14px;font-weight:700;margin-top:18px}
+.home-service-cert>small{display:block;font-size:11px;color:#66717a;margin-top:8px}
+.home-service-cert:hover>span{color:#087d75}
+.home-service-process{background:#fff}
+.home-service-section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;margin-bottom:52px}
+.home-service-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));list-style:none;padding:0;gap:28px}
+.home-service-steps li{border-top:1px solid #bdc8ce;padding-top:24px;min-width:0}
+.home-service-step-number{display:block;font-size:50px;line-height:1;font-weight:300;letter-spacing:-.06em;color:#087d75;margin-bottom:32px}
+.home-service-steps h3{font-size:19px;font-weight:700;margin-bottom:12px}
+.home-service-steps p{font-size:14px;color:#687580;line-height:1.8}
+.home-service-clients{background:#fff;border-top:1px solid #e7ebea}
+.home-service-clients .home-service-title{font-size:clamp(27px,2.8vw,38px)}
+.home-service-logo-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));list-style:none;padding:0;border-top:1px solid #e1e6e5;border-left:1px solid #e1e6e5}
+.home-service-logo-grid li{display:flex;align-items:center;justify-content:center;height:104px;padding:24px 30px;background:#fff;border-bottom:1px solid #e1e6e5;border-right:1px solid #e1e6e5}
+.home-service-logo-grid img{max-width:100%;max-height:54px;object-fit:contain}
+.home-service-logo-marquee{overflow:hidden;display:flex;flex-direction:column;gap:32px}
+.home-service-logo-track{display:flex;width:max-content;animation:home-service-logos 35s linear infinite}
+.home-service-logo-track[data-reverse="true"]{animation-direction:reverse}
+.home-service-logo-group{display:flex;align-items:center;gap:96px;padding-right:96px;flex-shrink:0}
+.home-service-logo-item{display:flex;align-items:center;justify-content:center;width:170px;height:64px;flex-shrink:0}
+.home-service-logo-item img{max-width:100%;max-height:100%;object-fit:contain}
+@keyframes home-service-logos{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(max-width:767px){
+  .home-service-logo-marquee{gap:20px}
+  .home-service-logo-group{gap:32px;padding-right:32px}
+  .home-service-logo-item{width:120px;height:48px}
+}
+@media(prefers-reduced-motion:reduce){
+  .home-service-logo-track{animation:none;width:100%}
+  .home-service-logo-group{flex-wrap:wrap;justify-content:center;width:100%;padding:0 16px;gap:24px}
+  .home-service-logo-group[aria-hidden="true"]{display:none}
+}
+.home-service-contact{background:#102d47;color:#fff;padding:94px 0}
+.home-service-contact-layout{display:grid;grid-template-columns:1.35fr 1fr;align-items:center;gap:100px}
+.home-service-contact .home-service-eyebrow{color:#7dd9c4}
+.home-service-contact h2{font-size:clamp(34px,4.2vw,60px);line-height:1.25;font-weight:600;letter-spacing:-.06em}
+.home-service-contact h2 span{color:#8ad9c9}
+.home-service-contact .home-service-intro{color:#bdcbd4;margin-top:26px}
+.home-service-contact-actions{display:flex;flex-direction:column;gap:12px}
+.home-service-contact-actions a{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px 28px;text-decoration:none;transition:background-color .2s}
+.home-service-contact-actions small{display:block;font-size:12px;margin-bottom:9px}
+.home-service-contact-actions strong{font-size:23px;font-weight:600;letter-spacing:-.025em}
+.home-service-quote-link{background:#a8e3d4;color:#102d47}
+.home-service-quote-link:hover{background:#c4efe4}
+.home-service-phone-link{border:1px solid #506576;color:white}
+.home-service-phone-link small{color:#bdcbd4}
+.home-service-phone-link:hover{background:#1b3c56}
+@media(max-width:1023px){
+.home-service-trust-layout{gap:36px}
+.home-service-certificates{padding:22px}
+.home-service-cert-grid{gap:12px}
+.home-service-cert-image{height:200px;padding:10px}
+.home-service-contact-layout{gap:45px}
+.home-service-steps{gap:20px}
+}
+@media(max-width:767px){
+.home-service{padding:48px 0}
+.home-service-trust-layout,.home-service-contact-layout{grid-template-columns:1fr;gap:28px}
+.home-service-section-heading{align-items:flex-start;flex-direction:column;gap:16px;margin-bottom:28px}
+.home-service .home-service-eyebrow{margin-bottom:12px}
+.home-service .home-service-intro{font-size:14px}
+.home-service-values{margin-top:22px!important}
+.home-service-values>div{padding:16px 0}
+.home-service-trust .home-service-intro{margin-top:18px}
+.home-service-cert-image{height:clamp(150px,42vw,200px)}
+.home-service-cert>span{font-size:12px}
+.home-service-certificates{padding:18px 14px}
+.home-service-cert-heading{margin-bottom:16px!important}
+.home-service-cert>span{margin-top:12px}
+.home-service-steps{grid-template-columns:1fr;gap:0}
+.home-service-steps li{display:grid;grid-template-columns:46px 1fr;gap:16px;padding:18px 0}
+.home-service-step-number{font-size:32px;margin:0}
+.home-service-steps h3{font-size:18px;margin-bottom:6px}
+.home-service-logo-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.home-service-logo-grid li{height:85px;padding:16px}
+.home-service-logo-grid img{max-height:43px}
+.home-service-contact-actions a{padding:20px}
+.home-service-contact .home-service-intro{margin-top:18px}
+}
+@media(max-width:380px){
+.home-service-cert>span{font-size:11px}
+.home-service-logo-grid li{padding:12px}
+}
+@media(prefers-reduced-motion:reduce){.home-service-contact-actions a{transition:none}}

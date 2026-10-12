@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, Bot, Building2, Users, Monitor, Calendar, Target, ArrowRight } from 'lucide-react';
 import { Container } from './ui/Container';
+import './HomeDiscovery.css';
 
 type AnswerState = Record<string, string>;
 
@@ -110,13 +111,9 @@ export const B2BCurationWizard: React.FC = () => {
     const nextActiveSteps = ALL_STEPS.filter(step => !step.condition || step.condition(newAnswers));
 
     if (currentStep < nextActiveSteps.length - 1) {
-      setTimeout(() => setCurrentStep((prev) => prev + 1), 300);
+      setCurrentStep(currentStep + 1);
     } else {
-      setIsAnalyzing(true);
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setShowResult(true);
-      }, 2000); // 2초 분석 로딩 애니메이션
+      setShowResult(true);
     }
   };
 
@@ -129,7 +126,7 @@ export const B2BCurationWizard: React.FC = () => {
 
   const closeWizard = () => {
     setIsOpen(false);
-    setTimeout(resetWizard, 300);
+    resetWizard();
   };
 
   const getRecommendation = () => {
@@ -228,31 +225,37 @@ export const B2BCurationWizard: React.FC = () => {
 
   return (
     <>
-      <section className="bg-slate-50 py-16 md:py-24">
+      <section className="home-discovery" aria-labelledby="discovery-title">
         <Container>
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] p-8 md:p-12 shadow-2xl">
-            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
-            
-            <div className="relative z-10 flex flex-col items-center text-center">
-              <div className="mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-white/10 text-teal-400 backdrop-blur-md shadow-inner border border-white/20">
-                <Bot size={36} />
-              </div>
-              <h2 className="mb-4 text-2xl font-bold text-white md:text-4xl">
-                어떤 사무실을 준비 중이신가요?
-              </h2>
-              <p className="mb-8 max-w-xl text-slate-300 md:text-lg font-light leading-relaxed">
-                복잡한 렌탈 고민은 끝! 스마트한 AI가 몇 가지 질문만으로<br className="hidden md:block" />
-                고객님의 비즈니스 환경에 최적화된 맞춤 패키지를 큐레이션 해드립니다.
-              </p>
-              <button
-                onClick={() => setIsOpen(true)}
-                className="group inline-flex items-center gap-2 rounded-full bg-teal-400 px-8 py-4 font-bold text-slate-900 transition-all hover:bg-teal-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(45,212,191,0.4)]"
-              >
-                AI 맞춤 추천 시작하기
-                <ChevronRight className="transition-transform group-hover:translate-x-1" size={20} />
-              </button>
+          <div className="home-discovery-heading">
+            <div>
+              <p className="home-discovery-eyebrow">FIND YOUR SPACE</p>
+              <h2 id="discovery-title">공간이 달라도,<br />준비는 간결하게.</h2>
             </div>
+            <p>어떤 공간을 준비하고 계신가요?<br />사용 목적을 선택하면 필요한 렌탈 구성을 안내해 드립니다.</p>
+          </div>
+          <div className="home-discovery-options">
+            {[
+              { value: 'office', title: '사무 공간', desc: '프로젝트 룸부터 현장 사무실까지', image: '/comp-notebook.svg', tag: 'WORKSPACE' },
+              { value: 'corp', title: '기업 행사', desc: '세미나와 워크숍을 위한 준비', image: '/comp-table.svg', tag: 'BUSINESS EVENT' },
+              { value: 'expo', title: '전시·팝업', desc: '사람이 모이는 공간의 완성', image: '/comp-chair.svg', tag: 'EXHIBITION' },
+              { value: 'public', title: '공공기관·시험장', desc: '회의부터 시험 운영에 필요한 구성', image: '/comp-printer.svg', tag: 'PUBLIC SPACE' },
+            ].map((space, index) => (
+              <button key={space.value} type="button" className="home-discovery-option"
+                onClick={() => {
+                  setAnswers({ event_type: space.value });
+                  setCurrentStep(1);
+                  setShowResult(false);
+                  setIsAnalyzing(false);
+                  setIsOpen(true);
+                }}>
+                <span className="home-discovery-option-top"><span>{String(index + 1).padStart(2, '0')}</span><ArrowRight size={20} /></span>
+                <img src={space.image} alt="" loading="lazy" />
+                <span className="home-discovery-tag">{space.tag}</span>
+                <strong>{space.title}</strong>
+                <span className="home-discovery-description">{space.desc}</span>
+              </button>
+            ))}
           </div>
         </Container>
       </section>
@@ -267,7 +270,7 @@ export const B2BCurationWizard: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
                 <Bot size={20} className="text-teal-500" />
-                AI B2B 렌탈 큐레이터
+                용도별 렌탈 추천
               </h3>
               <button
                 onClick={closeWizard}
@@ -286,8 +289,8 @@ export const B2BCurationWizard: React.FC = () => {
                     <div className="absolute inset-0 h-24 w-24 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
                     <Monitor className="absolute inset-0 m-auto h-8 w-8 text-slate-400 animate-pulse" />
                   </div>
-                  <h4 className="text-xl font-bold text-slate-800">AI가 최적의 패키지를 구성하는 중...</h4>
-                  <p className="text-slate-500 text-center">선택하신 환경과 조건에 맞는<br/>최적의 장비 데이터를 분석하고 있습니다.</p>
+                  <h4 className="text-xl font-bold text-slate-800">추천 구성을 준비하고 있습니다</h4>
+                  <p className="text-slate-500 text-center">선택하신 용도에 맞는<br/>렌탈 패키지를 안내해 드립니다.</p>
                 </div>
               ) : showResult ? (
                 <div className="flex flex-col items-center justify-center text-center animate-in slide-in-from-bottom-4 fade-in duration-500">
@@ -295,7 +298,7 @@ export const B2BCurationWizard: React.FC = () => {
                     <CheckCircleIcon className="h-12 w-12 text-teal-500" />
                   </div>
                   <h4 className="mb-2 text-sm font-bold tracking-wider text-teal-600 uppercase">
-                    AI 추천 결과
+                    맞춤 추천 결과
                   </h4>
                   <h2 className="mb-4 text-2xl md:text-3xl font-bold text-slate-900 break-keep">
                     {result.title}
