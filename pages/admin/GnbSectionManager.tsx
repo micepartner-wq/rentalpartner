@@ -14,6 +14,7 @@ import {
     updateBoardPost
 } from '../../src/api/cmsApi';
 import { uploadImage } from '../../src/api/storageApi';
+import { HomeReviewPinOrder } from '../../components/admin/HomeReviewPinOrder';
 import {
     BoardCategoryBoardType,
     clearHomeReviewPins,
@@ -517,12 +518,7 @@ export const GnbSectionManager = () => {
 
     // 핀을 누르면 그 후기를 홈 슬라이드 고정 목록에 넣거나 뺀다(바로 저장).
     // 고정 목록이 아직 없으면 "지금 홈에 보이는 후기들"을 출발점으로 삼아, 누른 글을 더하거나 뺀다.
-    const togglePin = async (post: BoardPost) => {
-        if (!post.id || pinBusy) return;
-        const reviewIds = new Set(posts.filter((item) => item.board_type === 'review').map((item) => item.id));
-        const base = (homeReviewPins ?? autoShownReviewIds).filter((id) => reviewIds.has(id));
-        const next = base.includes(post.id) ? base.filter((id) => id !== post.id) : [...base, post.id];
-
+    const persistPins = async (next: string[]) => {
         setPinBusy(true);
         try {
             await upsertHomeReviewPins(next);
@@ -533,6 +529,32 @@ export const GnbSectionManager = () => {
         } finally {
             setPinBusy(false);
         }
+    };
+
+    // 현재 고정 목록(없으면 홈에 자동으로 보이는 후기들)에서, 삭제된 글의 id 는 걸러낸다.
+    const currentPinBase = () => {
+        const reviewIds = new Set(posts.filter((item) => item.board_type === 'review').map((item) => item.id));
+        return (homeReviewPins ?? autoShownReviewIds).filter((id) => reviewIds.has(id));
+    };
+
+    const togglePin = async (post: BoardPost) => {
+        if (!post.id || pinBusy) return;
+        const base = currentPinBase();
+        await persistPins(base.includes(post.id) ? base.filter((id) => id !== post.id) : [...base, post.id]);
+    };
+
+    const unpinById = async (id: string) => {
+        if (pinBusy || !homeReviewPins) return;
+        await persistPins(homeReviewPins.filter((pinId) => pinId !== id));
+    };
+
+    const movePin = async (index: number, direction: -1 | 1) => {
+        if (pinBusy || !homeReviewPins) return;
+        const target = index + direction;
+        if (target < 0 || target >= homeReviewPins.length) return;
+        const next = [...homeReviewPins];
+        [next[index], next[target]] = [next[target], next[index]];
+        await persistPins(next);
     };
 
     const resetPinsToAuto = async () => {
@@ -691,6 +713,17 @@ export const GnbSectionManager = () => {
                             </button>
                         )}
                     </div>
+                )}
+
+                {/* 고정된 후기를 홈에 보이는 순서대로 위쪽에 모아 보여 주고, 여기서 순서를 바꾼다 */}
+                {(filterType === 'all' || filterType === 'review') && homeReviewPins !== null && (
+                    <HomeReviewPinOrder
+                        pins={homeReviewPins}
+                        posts={posts}
+                        busy={pinBusy}
+                        onMove={movePin}
+                        onRemove={unpinById}
+                    />
                 )}
 
                 {/* Bottom Section: Post Management (Main Content) */}
