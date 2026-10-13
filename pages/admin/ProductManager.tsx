@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import PackageInstallationEditor from '../../components/admin/PackageInstallationEditor';
+import { normalizeInstallationScenes, getInstallationScenesValidationError, type InstallationScene } from '../../src/utils/installationScenes';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Upload, Image as ImageIcon, Grid3X3, Bold, Italic, Underline, Eye, EyeOff, Tag } from 'lucide-react';
 import { getProducts, addProduct, updateProduct, deleteProduct, isGeneralBasicProduct, Product, ProductCatalogType, ProductOptionGroup, ProductOptionSelectionMode } from '../../src/api/productApi';
 import { getSections, getProductSections, setProductSections, Section } from '../../src/api/sectionApi';
@@ -98,6 +100,7 @@ const createEmptyFormData = (
     place_components: [] as any[],
     food_components: [] as any[],
     product_options: [] as ProductOptionGroup[],
+    installation_scenes: [] as InstallationScene[],
 });
 
 const createEmptyProductOptionGroup = (): ProductOptionGroup => ({
@@ -142,6 +145,7 @@ export const ProductManager = () => {
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [saving, setSaving] = useState(false);
+    const [installationEditorBusy, setInstallationEditorBusy] = useState(false);
     const [selectedSections, setSelectedSections] = useState<string[]>([]);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -260,6 +264,7 @@ export const ProductManager = () => {
             place_components: product.place_components || [],
             food_components: product.food_components || [],
             product_options: product.product_options || [],
+            installation_scenes: normalizeInstallationScenes(product.installation_scenes),
         });
 
         if (product.product_type === 'cooperative') {
@@ -280,6 +285,9 @@ export const ProductManager = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (saving || installationEditorBusy) return;
+        const sceneError = getInstallationScenesValidationError(formData.installation_scenes);
+        if (sceneError) { alert(sceneError); return; }
         setSaving(true);
         try {
             const clean = (arr: any[]) => (arr || []).filter(i => i.name).map(({ _category, ...rest }) => rest);
@@ -303,6 +311,7 @@ export const ProductManager = () => {
                 place_components: isPackageProduct ? clean(formData.place_components) : [],
                 food_components: isPackageProduct ? clean(formData.food_components) : [],
                 product_options: isBasicProductEditor ? normalizeProductOptions(formData.product_options) : [],
+                installation_scenes: isPackageProduct ? formData.installation_scenes : [],
             };
 
             let id;
@@ -1040,6 +1049,19 @@ export const ProductManager = () => {
                                 </div>
                             )}
 
+                            {formData.catalog_type === 'package' && isBasicProductEditor && (
+                                <fieldset disabled={saving} className="min-w-0">
+                                    <PackageInstallationEditor
+                                        key={editingProduct?.id || 'new-package'}
+                                        value={formData.installation_scenes}
+                                        onChange={(scenes) => setFormData((current) => ({ ...current, installation_scenes: scenes }))}
+                                        products={products}
+                                        representativeImageUrl={formData.image_url}
+                                        onBusyChange={setInstallationEditorBusy}
+                                    />
+                                </fieldset>
+                            )}
+
                             {/* 상세 설명 */}
                             {isBasicProductEditor ? (
                                 <div><label className="block text-sm font-bold text-slate-700 mb-2">상세 설명</label><SimpleEditor initialValue={formData.description} onChange={(v) => setFormData({ ...formData, description: v })} /></div>
@@ -1335,7 +1357,7 @@ export const ProductManager = () => {
 
                         <div className="p-4 border-t bg-slate-50 flex gap-4 rounded-b-xl">
                             <button type="button" onClick={resetForm} className="flex-1 py-3 border border-slate-300 rounded-xl bg-white hover:bg-slate-100 font-bold transition-all">취소</button>
-                            <button type="submit" onClick={(e) => { e.preventDefault(); handleSubmit(e); }} disabled={saving} className="flex-1 py-3 bg-[#001E45] text-white rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 disabled:bg-slate-300 shadow-lg font-bold transition-all">
+                            <button type="submit" onClick={(e) => { e.preventDefault(); handleSubmit(e); }} disabled={saving || installationEditorBusy} className="flex-1 py-3 bg-[#001E45] text-white rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 disabled:bg-slate-300 shadow-lg font-bold transition-all">
                                 {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                                 <span>{editingProduct ? `${editorTypeLabel} 저장` : `${editorTypeLabel} 등록`}</span>
                             </button>

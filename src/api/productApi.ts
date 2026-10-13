@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase';
+import { getInstallationScenesValidationError, isMissingInstallationScenesError, normalizeInstallationScenes } from '../utils/installationScenes';
+import type { InstallationScene } from '../utils/installationScenes';
 
 export type ProductCatalogType = 'general' | 'package';
 
@@ -24,6 +26,7 @@ export interface Product {
     description?: string;
     short_description?: string;
     image_url?: string;
+    installation_scenes?: InstallationScene[];
     stock: number;
     discount_rate?: number;
     created_at?: string;
@@ -250,8 +253,34 @@ export const getProductById = async (id: string): Promise<Product | null> => {
 
 // ???ㅺ강? ??⑤베堉?
 // ???ㅺ강? ??⑤베堉?
+
+const validateSceneWrite = (value: InstallationScene[] | undefined) => {
+    if (value === undefined) return;
+    const error = getInstallationScenesValidationError(value);
+    if (error) throw new Error(error);
+};
+
+const INSTALLATION_SCHEMA_MESSAGE = '설치사진 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_product_installation_scenes.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
+
+// Fetch only the referenced products; a deleted product is simply absent from the result.
+export const getProductsByIds = async (ids: string[]): Promise<Product[]> => {
+    const uniqueIds = [...new Set(ids.filter(Boolean))];
+    if (uniqueIds.length === 0) return [];
+    const products: Product[] = [];
+    for (let offset = 0; offset < uniqueIds.length; offset += 50) {
+        const { data, error } = await supabase.from('products')
+            .select('*')
+            .in('id', uniqueIds.slice(offset, offset + 50));
+        if (error) throw error;
+        products.push(...(data || []) as Product[]);
+    }
+    return products;
+};
+
 export const addProduct = async (product: Omit<Product, 'id' | 'created_at'>): Promise<Product> => {
     const userData = { ...product };
+    validateSceneWrite(userData.installation_scenes);
+    if (userData.installation_scenes !== undefined) userData.installation_scenes = normalizeInstallationScenes(userData.installation_scenes);
 
     // ???ㅺ강? ?類???????筌???獄쏅똻???棺??짆?먰맪???癰귙끋源?
     // if (!userData.product_code) ...
@@ -267,6 +296,12 @@ export const addProduct = async (product: Omit<Product, 'id' | 'created_at'>): P
         if (error) throw error;
         return data;
     } catch (error) {
+        if (isMissingInstallationScenesError(error) && userData.installation_scenes !== undefined) {
+            if (userData.installation_scenes.length > 0) throw new Error(INSTALLATION_SCHEMA_MESSAGE);
+            // Older databases can still save products that have no installation photos.
+            const { installation_scenes, ...legacyProduct } = userData;
+            return addProduct(legacyProduct);
+        }
         if (isMissingProductOptionsError(error)) {
             if (Array.isArray(userData.product_options) && userData.product_options.length > 0) {
                 throw new Error('상품 옵션 기능을 사용하려면 add_product_options_column.sql 을 먼저 실행해주세요.');
@@ -291,6 +326,9 @@ export const addProduct = async (product: Omit<Product, 'id' | 'created_at'>): P
 
 // ???ㅺ강? ???쒓낯??
 export const updateProduct = async (id: string, updates: Partial<Product>): Promise<Product> => {
+    updates = { ...updates };
+    validateSceneWrite(updates.installation_scenes);
+    if (updates.installation_scenes !== undefined) updates.installation_scenes = normalizeInstallationScenes(updates.installation_scenes);
     try {
         const { data, error } = await supabase
             .from('products')
@@ -302,6 +340,11 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
         if (error) throw error;
         return data;
     } catch (error) {
+        if (isMissingInstallationScenesError(error) && updates.installation_scenes !== undefined) {
+            if (updates.installation_scenes.length > 0) throw new Error(INSTALLATION_SCHEMA_MESSAGE);
+            const { installation_scenes, ...legacyUpdates } = updates;
+            return updateProduct(id, legacyUpdates);
+        }
         if (isMissingProductOptionsError(error)) {
             if (Array.isArray(updates.product_options) && updates.product_options.length > 0) {
                 throw new Error('상품 옵션 기능을 사용하려면 add_product_options_column.sql 을 먼저 실행해주세요.');
