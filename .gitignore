@@ -47,3 +47,6 @@ desktop.ini
 # Local recovery backups
 backups/
 .vite-dev.err.log
+
+# All log files (dev server / build logs)
+*.log
