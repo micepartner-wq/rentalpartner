@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Container } from "../components/ui/Container";
 import { ProductDetailHero } from "../components/products/ProductDetailHero";
+import { PackageDetailHeader, PackageSpaceShowcase, PackageCompositionOverview, PackageServiceGuide, PackageOriginalDetails, PackageCombinationControls } from "../components/products/PackageDetailSections";
+import "../components/products/PackageDetail.css";
 import { RelatedProducts } from "../components/products/RelatedProducts";
 import {
   Loader2,
@@ -1045,40 +1047,21 @@ export const ProductDetailPage: React.FC = () => {
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin text-[#001E45]" size={40} /></div>;
   if (!product) return <div className="p-20 text-center text-gray-500">상품 정보를 불러올 수 없습니다.</div>;
 
-  const canonicalUrl = `${SITE_URL}/products/${product.id || id || ""}`;
-  const seoTitle = `${product.name} | 마이스데이`;
-  const seoDescription = buildSeoDescription(product.short_description, product.description) || `${product.name} 마이스데이 렌탈 서비스.`;
-  const seoImage = toAbsoluteUrl(product.image_url);
-
-  return (
+  const openPackageCustomization = () => {
+    const panel = document.getElementById('package-customize') as HTMLDetailsElement | null;
+    if (!panel) return;
+    panel.open = true;
+    setMobileBarExpanded(false);
+    panel.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    panel.querySelector('summary')?.focus({ preventScroll: true });
+  };
+  const selectedPackageComponents = buildBasicComponents();
+  const configurationControls = (
     <>
-      <Helmet>
-        <title>{seoTitle}</title>
-        <meta name="description" content={seoDescription} />
-        <link rel="canonical" href={canonicalUrl} />
-        <script type="application/ld+json">{toJsonLd({ "@context": "https://schema.org", "@graph": [buildBreadcrumbJsonLd([{ name: "홈", item: `${SITE_URL}/` }, { name: "렌탈 상품 목록", item: `${SITE_URL}/products` }, { name: product.name, item: canonicalUrl }]), buildProductJsonLd({ name: product.name, description: seoDescription, url: canonicalUrl, image: seoImage, category: product.category, sku: product.id, price: product.price, stock: product.stock, includeOffers: !priceDisplayLoading && isVisiblePriceMode(priceDisplayMode) })] })}</script>
-      </Helmet>
-      <div className="min-h-screen bg-gray-50 pt-8 pb-36 lg:pb-14">
-        <Container>
-          <nav className="mb-6">
-            <ol className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
-              <li><a href="/" className="hover:text-[#001E45] transition-colors">홈</a></li>
-              {product.category && (
-                <>
-                  <li><ChevronRight size={14} className="text-gray-300" /></li>
-                  <li><a href={`/products?category=${encodeURIComponent(product.category)}`} className="hover:text-[#001E45] transition-colors">{product.category}</a></li>
-                </>
-              )}
-            </ol>
-          </nav>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-8 lg:gap-10">
-            <div className="lg:col-span-7 xl:col-span-8 lg:row-start-1 space-y-8">
-              <ProductDetailHero product={product} />
-
               {product.basic_components && product.basic_components.length > 0 && (
-                <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-100">
-                  <button onClick={() => setBasicComponentsExpanded(!basicComponentsExpanded)} className="w-full flex items-center justify-between pb-2 text-left">
+                <div className={(isPackageProduct ? "pkd-basic-adjustments " : "") + "bg-white rounded-[24px] p-6 shadow-sm border border-gray-100"}>
+                  {isPackageProduct ? null : (
+                  <button type="button" aria-expanded={basicComponentsExpanded} onClick={() => setBasicComponentsExpanded(!basicComponentsExpanded)} className="w-full flex items-center justify-between pb-2 text-left">
                     <div className="flex items-center gap-3">
                       <span className="bg-[#001E45] text-white px-2.5 py-1 rounded-md text-xs font-bold tracking-wide">기본 구성</span>
                       <h3 className="font-semibold text-gray-900 text-lg">기본 구성품으로 포함된 제품</h3>
@@ -1086,8 +1069,9 @@ export const ProductDetailPage: React.FC = () => {
                     </div>
                     <ChevronRight size={20} className={`text-gray-400 transition-transform duration-200 ${basicComponentsExpanded ? "rotate-90" : ""}`} />
                   </button>
-                  <p className="mt-2 text-[14px] text-slate-500 break-keep">패키지에 기본으로 포함된 제품 목록입니다. 필요에 맞게 추가 구성품을 선택하거나 수량을 조정할 수 있습니다.</p>
-                  {basicComponentsExpanded && (
+                  )}
+                  {!isPackageProduct && <p className="mt-2 text-[14px] text-slate-500 break-keep">패키지에 기본으로 포함된 제품 목록입니다. 필요에 맞게 추가 구성품을 선택하거나 수량을 조정할 수 있습니다.</p>}
+                  {(isPackageProduct || basicComponentsExpanded) && (
                     <div className="space-y-0 mt-4 border-t border-gray-100 pt-2">
                       {product.basic_components.map((item, idx) => {
                         const imageUrl = item.image_url || componentProducts.find((p) => p.name === item.name)?.image_url || getComponentComponentImage(item.name);
@@ -1097,7 +1081,7 @@ export const ProductDetailPage: React.FC = () => {
                         const isExcluded = currentQty === 0;
 
                         return (
-                          <div key={idx} className={`flex items-center gap-4 py-4 border-b border-dashed border-gray-200 last:border-0 transition-all rounded-xl px-2 -mx-2 ${isExcluded ? 'opacity-60 grayscale bg-gray-50' : 'hover:bg-gray-50/50'}`}>
+                          <div key={idx} className={`${isPackageProduct ? "pkd-basic-row " : ""}flex items-center gap-4 py-4 border-b border-dashed border-gray-200 last:border-0 transition-all rounded-xl px-2 -mx-2 ${isExcluded ? 'opacity-60 grayscale bg-gray-50' : 'hover:bg-gray-50/50'}`}>
                             <div className="w-16 h-16 flex-shrink-0 rounded-xl bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden relative">
                               {imageUrl ? <img src={imageUrl} alt={item.name} className="w-full h-full object-cover" /> : <Package size={24} className="text-slate-400" />}
                             </div>
@@ -1111,23 +1095,27 @@ export const ProductDetailPage: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <div className={`flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 ${isExcluded ? 'opacity-70' : ''}`}>
                                 <button 
+                                  aria-label={`${item.name} 수량 줄이기`}
                                   onClick={() => handleUpdateBasicComponentQuantity(item.name, -1)}
                                   className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
                                 >
-                                  <Minus size={14} />
+                                  <Minus size={14} aria-hidden="true" />
                                 </button>
                                 <input 
                                   type="text"
+                                  inputMode="numeric"
+                                  aria-label={`${item.name} 수량`}
                                   value={currentQtyText}
                                   onChange={(e) => handleBasicComponentQuantityInputChange(item.name, e.target.value)}
                                   onBlur={() => handleBasicComponentQuantityInputBlur(item.name, item.quantity)}
                                   className="w-8 text-center text-[13px] font-bold text-gray-900 bg-transparent outline-none focus:bg-slate-50 rounded"
                                 />
                                 <button 
+                                  aria-label={`${item.name} 수량 늘리기`}
                                   onClick={() => handleUpdateBasicComponentQuantity(item.name, 1)}
                                   className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
                                 >
-                                  <Plus size={14} />
+                                  <Plus size={14} aria-hidden="true" />
                                 </button>
                               </div>
                               <button
@@ -1160,11 +1148,14 @@ export const ProductDetailPage: React.FC = () => {
               {(hasProductOptions || globalCooperative.length > 0) && (
                 <div className="space-y-6">
                   {hasProductOptions && isCombinationOptionMode ? (
+                    <>
                     <CombinationProductOptionGroups
                       groups={productOptionGroups}
                       selections={productOptionSelections}
                       onSelect={handleSelectCombinationOption}
                     />
+                    {isPackageProduct && <PackageCombinationControls combinations={combinationSets} drafts={combinationQuantityDrafts} onUpdate={handleUpdateCombinationQuantity} onInput={handleCombinationQuantityInputChange} onBlur={handleCombinationQuantityInputBlur} />}
+                    </>
                   ) : hasProductOptions ? (
                     <ProductOptionGroups
                       groups={productOptionGroups}
@@ -1199,6 +1190,59 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               )}
 
+
+    </>
+  );
+
+  const canonicalUrl = `${SITE_URL}/products/${product.id || id || ""}`;
+  const seoTitle = `${product.name} | 렌탈어때`;
+  const seoDescription = buildSeoDescription(product.short_description, product.description) || `${product.name} 렌탈 서비스입니다. 렌탈어때에서 합리적인 조건으로 상담받아보세요.`;
+  const seoImage = toAbsoluteUrl(product.image_url);
+
+  return (
+    <>
+      <Helmet>
+        <title>{seoTitle}</title>
+        <meta name="description" content={seoDescription} />
+        <link rel="canonical" href={canonicalUrl} />
+        <script type="application/ld+json">{toJsonLd({ "@context": "https://schema.org", "@graph": [buildBreadcrumbJsonLd([{ name: "홈", item: `${SITE_URL}/` }, { name: "렌탈 상품 목록", item: `${SITE_URL}/products` }, { name: product.name, item: canonicalUrl }]), buildProductJsonLd({ name: product.name, description: seoDescription, url: canonicalUrl, image: seoImage, category: product.category, sku: product.id, price: product.price, stock: product.stock, includeOffers: !priceDisplayLoading && isVisiblePriceMode(priceDisplayMode) })] })}</script>
+      </Helmet>
+      <div className={isPackageProduct ? "package-detail-page min-h-screen pt-8 pb-36 lg:pb-14" : "min-h-screen bg-gray-50 pt-8 pb-36 lg:pb-14"}>
+        <Container>
+          <nav className="mb-6">
+            <ol className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+              <li><a href="/" className="hover:text-[#001E45] transition-colors">홈</a></li>
+              {product.category && (
+                <>
+                  <li><ChevronRight size={14} className="text-gray-300" /></li>
+                  <li><a href={`/products?category=${encodeURIComponent(product.category)}`} className="hover:text-[#001E45] transition-colors">{product.category}</a></li>
+                </>
+              )}
+            </ol>
+          </nav>
+
+          {isPackageProduct && <PackageDetailHeader product={product} onCustomize={openPackageCustomization} />}
+          <div className={isPackageProduct ? "pkd-layout" : "grid grid-cols-1 lg:grid-cols-12 gap-y-8 lg:gap-10"}>
+            <div className={isPackageProduct ? "pkd-main" : "lg:col-span-7 xl:col-span-8 lg:row-start-1 space-y-8"}>
+              {isPackageProduct ? <PackageSpaceShowcase product={product} /> : <ProductDetailHero product={product} />}
+
+              {isPackageProduct ? (
+                <>
+                  <PackageCompositionOverview product={product} componentProducts={componentProducts} quantities={basicComponentQuantities} onCustomize={openPackageCustomization} />
+                  <details id="package-customize" className="pkd-customize">
+                    <summary><div><span className="pkd-eyebrow">MAKE IT YOURS</span><h2>우리 공간에 맞게 구성 변경</h2></div><Plus size={22} aria-hidden="true" /></summary>
+                    <div className="pkd-customize-content">
+                      <p className="pkd-customize-note">필요 없는 상품은 제외하시고, 필요한 장비가 없는 경우에는 견적 요청 단계의 ‘추가 요청사항’에 적어 주시거나 다른 기타 상품을 장바구니에 담으신 후 견적을 받아 주시면 감사하겠습니다.</p>
+                      {configurationControls}
+                      {!(product.basic_components?.length || hasProductOptions || globalCooperative.length) && <p className="pkd-customize-note">원하시는 구성은 견적 요청 단계에서 담당자에게 전달해 주세요.</p>}
+                    </div>
+                  </details>
+                  <PackageServiceGuide />
+                  <PackageOriginalDetails description={product.description} />
+                </>
+              ) : configurationControls}
+
+              {!isPackageProduct && (
               <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm" aria-label="상품 정보">
                 <div className="flex border-b border-gray-100">
                   {[{ id: "detail", label: "제품 상세정보" }, { id: "guide", label: "대여 안내" }].map((tab) => (
@@ -1244,9 +1288,10 @@ export const ProductDetailPage: React.FC = () => {
                   )}
                 </div>
               </section>
+              )}
             </div>
 
-            <div className="lg:col-span-5 xl:col-span-4 lg:row-start-1">
+            <div className={isPackageProduct ? "pkd-sidebar" : "lg:col-span-5 xl:col-span-4 lg:row-start-1"}>
               <div className="lg:sticky lg:top-24 space-y-5">
                 {/* Summary Card */}
                 <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_12px_36px_rgba(0,30,69,0.08)]" aria-labelledby="quote-summary-title">
@@ -1254,14 +1299,18 @@ export const ProductDetailPage: React.FC = () => {
                     <div className="flex items-start gap-3.5">
                       <ShoppingBag size={22} className="mt-0.5 shrink-0 text-[#001E45]" aria-hidden="true" />
                       <div className="min-w-0">
-                        <h3 id="quote-summary-title" className="text-lg font-bold text-slate-900">견적 요청 요약</h3>
-                        <p className="mt-1.5 text-[13px] leading-5 text-slate-500 break-keep">선택한 구성과 수량을 확인하고 맞춤 견적을 요청하세요.</p>
+                        <h3 id="quote-summary-title" className="text-lg font-bold text-slate-900">{isPackageProduct ? "우리 공간의 렌탈 구성" : "견적 요청 요약"}</h3>
+                        <p className="mt-1.5 text-[13px] leading-5 text-slate-500 break-keep">{isPackageProduct ? "이 구성을 시작으로 공간과 일정에 맞춘 견적을 받아보세요." : "선택한 구성과 수량을 확인하고 맞춤 견적을 요청하세요."}</p>
                       </div>
                     </div>
                   </div>
                   <div className="p-6">
 
-                  <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  {isPackageProduct && <div className="pkd-selected-components">
+                    <div><strong>선택한 기본 구성 <span>{selectedPackageComponents.length}종</span></strong><button type="button" onClick={openPackageCustomization}>구성 변경</button></div>
+                    {selectedPackageComponents.length > 0 ? <ul>{selectedPackageComponents.map((item) => <li key={item.name}><span>{item.name}</span><b>{item.quantity}개</b></li>)}</ul> : <p>선택된 기본 구성품이 없습니다. 필요한 구성을 추가하거나 상담으로 안내받으세요.</p>}
+                  </div>}
+                  <div className={isPackageProduct && displaySummaryRows.length === 0 && selectedSummary.length === 0 ? "hidden" : "space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4"}>
                     {displaySummaryRows.filter(row => {
                       const val = String(row.value);
                       return !val.includes("0개");
@@ -1277,7 +1326,7 @@ export const ProductDetailPage: React.FC = () => {
                         {selectedSummary.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-[12.5px] text-gray-600">
                             <span className="truncate flex-1">{item.name}</span>
-                            {isCombinationOptionMode && combinationSets[idx] ? (
+                            {!isPackageProduct && isCombinationOptionMode && combinationSets[idx] ? (
                               <div className="ml-2 inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1">
                                 <button
                                   type="button"
@@ -1336,7 +1385,7 @@ export const ProductDetailPage: React.FC = () => {
                       disabled={isBooking || product.stock === 0} 
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#001E45] py-4 text-base font-bold text-white transition-colors hover:bg-[#002D66] disabled:bg-gray-400"
                     >
-                      {isBooking ? <Loader2 className="animate-spin" size={20} /> : "장바구니에서 견적 요청"}
+                      {isBooking ? <Loader2 className="animate-spin" size={20} /> : (isPackageProduct ? "이 구성으로 견적 받기" : "장바구니에서 견적 요청")}
                     </button>
                     <button 
                       onClick={() => openActionConfirm('cart')} 
@@ -1419,9 +1468,10 @@ export const ProductDetailPage: React.FC = () => {
           <div className="max-h-[calc(90dvh-24px)] overflow-y-auto px-5 pb-6">
             <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2"><ShoppingBag size={19} className="text-[#001E45]" /><h3 className="text-lg font-bold text-slate-900">견적 요청 요약</h3></div>
-              <span className="text-xs font-semibold text-slate-500">수량 {requestedQuantity}개</span>
+              <span className="text-xs font-semibold text-slate-500">{isPackageProduct ? `기본 구성 ${selectedPackageComponents.length}종` : `수량 ${requestedQuantity}개`}</span>
             </div>
-            <div className="rounded-2xl bg-slate-50 p-4"><SummaryRows rows={displaySummaryRows} /></div>
+            {(!isPackageProduct || displaySummaryRows.length > 0) && <div className="rounded-2xl bg-slate-50 p-4"><SummaryRows rows={displaySummaryRows} /></div>}
+            {isPackageProduct && <button type="button" onClick={openPackageCustomization} className="mb-4 text-sm font-semibold text-teal-700">구성 변경하기 →</button>}
             
             {buildBasicComponents().length > 0 && (
               <div className="mt-5 space-y-1.5 border-t border-slate-100 pt-4">
@@ -1445,14 +1495,14 @@ export const ProductDetailPage: React.FC = () => {
               <span className={getPublicPriceClassName({ mode: priceDisplayMode, loading: priceDisplayLoading, visibleClass: "text-lg font-bold text-[#001E45]", hiddenClass: "text-lg font-bold text-rose-500" })}>{totalPriceText}</span>
             </div>
             <div className="mt-5 space-y-2.5">
-              <button type="button" onClick={() => openActionConfirm('booking')} disabled={isBooking || product.stock === 0} className="flex w-full items-center justify-center rounded-xl bg-[#001E45] py-4 font-bold text-white disabled:bg-slate-400">장바구니에서 견적 요청</button>
+              <button type="button" onClick={() => openActionConfirm('booking')} disabled={isBooking || product.stock === 0} className="flex w-full items-center justify-center rounded-xl bg-[#001E45] py-4 font-bold text-white disabled:bg-slate-400">{isPackageProduct ? "이 구성으로 견적 받기" : "장바구니에서 견적 요청"}</button>
               <button type="button" onClick={() => handleAddToQuoteCart()} className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white py-4 font-bold text-[#001E45]">장바구니 담기</button>
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4 px-5 pb-5">
-            <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-500">{product.name} · {requestedQuantity}개</p><p className={getPublicPriceClassName({ mode: priceDisplayMode, loading: priceDisplayLoading, visibleClass: "mt-1 text-base font-bold text-[#001E45]", hiddenClass: "mt-1 text-sm font-bold text-rose-500" })}>{totalPriceText}</p></div>
-            <button type="button" onClick={() => setMobileBarExpanded(true)} className="shrink-0 rounded-xl bg-[#001E45] px-5 py-3.5 text-sm font-bold text-white">견적 확인</button>
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-500">{product.name} · {isPackageProduct ? `기본 구성 ${selectedPackageComponents.length}종` : `${requestedQuantity}개`}</p><p className={getPublicPriceClassName({ mode: priceDisplayMode, loading: priceDisplayLoading, visibleClass: "mt-1 text-base font-bold text-[#001E45]", hiddenClass: "mt-1 text-sm font-bold text-rose-500" })}>{totalPriceText}</p></div>
+            <button type="button" onClick={() => setMobileBarExpanded(true)} className="shrink-0 rounded-xl bg-[#001E45] px-5 py-3.5 text-sm font-bold text-white">{isPackageProduct ? "구성 확인 · 견적" : "견적 확인"}</button>
           </div>
         )}
       </div>

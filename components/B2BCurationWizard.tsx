@@ -236,10 +236,10 @@ export const B2BCurationWizard: React.FC = () => {
           </div>
           <div className="home-discovery-options">
             {[
-              { value: 'office', title: '사무 공간', desc: '프로젝트 룸부터 현장 사무실까지', image: '/comp-notebook.svg', tag: 'WORKSPACE' },
-              { value: 'corp', title: '기업 행사', desc: '세미나와 워크숍을 위한 준비', image: '/comp-table.svg', tag: 'BUSINESS EVENT' },
-              { value: 'expo', title: '전시·팝업', desc: '사람이 모이는 공간의 완성', image: '/comp-chair.svg', tag: 'EXHIBITION' },
-              { value: 'public', title: '공공기관·시험장', desc: '회의부터 시험 운영에 필요한 구성', image: '/comp-printer.svg', tag: 'PUBLIC SPACE' },
+              { value: 'office', title: '사무 공간', desc: '프로젝트 룸부터 현장 사무실까지', image: '/discovery-office.svg', tag: 'WORKSPACE' },
+              { value: 'corp', title: '기업 행사', desc: '세미나와 워크숍을 위한 준비', image: '/discovery-event.svg', tag: 'BUSINESS EVENT' },
+              { value: 'expo', title: '전시·팝업', desc: '사람이 모이는 공간의 완성', image: '/discovery-exhibition.svg', tag: 'EXHIBITION' },
+              { value: 'public', title: '공공기관·시험장', desc: '회의부터 시험 운영에 필요한 구성', image: '/discovery-exam.svg', tag: 'PUBLIC SPACE' },
             ].map((space, index) => (
               <button key={space.value} type="button" className="home-discovery-option"
                 onClick={() => {

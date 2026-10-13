@@ -24,7 +24,6 @@ import {
 import { ProductCard } from "../components/products/ProductCard";
 import { CategoryTiles } from "../components/products/CategoryTiles";
 import { ProductsQuoteBanner, ProductsTrustBar, ProductsTrustRail } from "../components/products/ProductsTrust";
-import { ClientLogoMarqueeSection } from "../components/ClientLogoMarqueeSection";
 import { buildBreadcrumbJsonLd, toJsonLd } from "../src/utils/seo";
 
 const ALL_LABEL = "전체";
@@ -568,10 +567,6 @@ export const ProductListPage: React.FC = () => {
 
         <ProductsQuoteBanner />
       </Container>
-      </div>
-
-      <div className="mt-14">
-        <ClientLogoMarqueeSection />
       </div>
     </div>
   );

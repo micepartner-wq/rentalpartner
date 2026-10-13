@@ -1,6 +1,8 @@
 import React from "react";
 import { FileText, Handshake, Headphones } from "lucide-react";
 import type { Product } from "../../src/api/productApi";
+import { normalizeInstallationScenes } from "../../src/utils/installationScenes";
+import { PackageInstallationGallery } from "./PackageInstallationGallery";
 
 const FACTS = [
   { icon: FileText, label: "견적 방식", value: "일정·수량에 맞춘 맞춤 견적" },
@@ -8,9 +10,22 @@ const FACTS = [
   { icon: Handshake, label: "계약", value: "비용 처리 · 수의계약 가능" },
 ];
 
-export const ProductDetailHero: React.FC<{ product: Product }> = ({ product }) => (
+export const ProductDetailHero: React.FC<{ product: Product }> = ({ product }) => {
+  const scenes = product.catalog_type === "package" ? normalizeInstallationScenes(product.installation_scenes) : [];
+  const heading = (
+    <div className={scenes.length > 0 ? "p-6 sm:p-8" : "px-6 pt-6 sm:px-8 sm:pt-8"}>
+      <h1 className="text-2xl font-bold leading-tight text-gray-900 break-keep xl:text-[32px]">{product.name}</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-slate-500 break-keep sm:text-base">
+        {product.short_description || "일정과 수량을 접수하면 담당자가 렌탈 조건을 안내해 드립니다."}
+      </p>
+    </div>
+  );
+  return (
   <section className="overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-sm lg:rounded-[28px]">
-    <div className="relative flex items-center justify-center bg-slate-50 px-6 py-8 sm:py-10">
+    {scenes.length > 0 && heading}
+    {scenes.length > 0 ? (
+      <div className="px-5 sm:px-6"><PackageInstallationGallery key={product.id} scenes={scenes} /></div>
+    ) : <div className="relative flex items-center justify-center bg-slate-50 px-6 py-8 sm:py-10">
       {product.category && (
         <span className="absolute left-5 top-5 rounded-md bg-white px-3 py-1.5 text-[12px] font-semibold leading-none text-[#001E45] shadow-sm sm:left-7 sm:top-7">
           {product.category}
@@ -21,14 +36,10 @@ export const ProductDetailHero: React.FC<{ product: Product }> = ({ product }) =
         alt={product.name}
         className="block h-[240px] w-auto max-w-full object-contain mix-blend-multiply sm:h-[320px] lg:h-[400px]"
       />
-    </div>
+    </div>}
 
-    <div className="p-6 sm:p-8">
-      <h1 className="text-2xl font-bold leading-tight text-gray-900 break-keep xl:text-[32px]">{product.name}</h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-slate-500 break-keep sm:text-base">
-        {product.short_description || "일정과 수량을 접수하면 담당자가 렌탈 조건을 안내해 드립니다."}
-      </p>
-
+    {scenes.length === 0 && heading}
+    <div className="px-6 pb-6 sm:px-8 sm:pb-8">
       <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {FACTS.map(({ icon: Icon, label, value }) => (
           <li key={label} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
@@ -44,4 +55,5 @@ export const ProductDetailHero: React.FC<{ product: Product }> = ({ product }) =
       </ul>
     </div>
   </section>
-);
+  );
+};
