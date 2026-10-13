@@ -14,6 +14,7 @@ import {
     updateBoardPost
 } from '../../src/api/cmsApi';
 import { uploadImage } from '../../src/api/storageApi';
+import { HomeReviewPinsPanel } from '../../components/admin/HomeReviewPinsPanel';
 import {
     BoardCategoryBoardType,
     getBoardCategories,
@@ -610,6 +611,9 @@ export const GnbSectionManager = () => {
                         <span className="bg-[#f8fafc] px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">게시글 목록 및 관리</span>
                     </div>
                 </div>
+
+                {/* 홈 설치후기 슬라이드에 보일 후기를 직접 고르는 패널 */}
+                <HomeReviewPinsPanel posts={posts} />
 
                 {/* Bottom Section: Post Management (Main Content) */}
                 <div className="space-y-6">

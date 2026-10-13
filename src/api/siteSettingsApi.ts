@@ -10,6 +10,7 @@ export interface SiteSetting {
 const TABLE_NAME = "site_settings";
 export const PRODUCT_PRICE_DISPLAY_MODE_SETTING_KEY = "product_price_display_mode";
 export const HOME_FEATURED_CATEGORY_TABS_SETTING_KEY = "home_featured_category_tabs";
+export const HOME_REVIEW_PINS_SETTING_KEY = "home_review_pins";
 export const BOARD_CATEGORY_SETTING_KEYS = {
   notice: "notice_board_categories",
   review: "review_board_categories",
@@ -185,6 +186,52 @@ export const upsertHomeFeaturedCategoryTabs = async (
   await upsertSiteSettings({
     [HOME_FEATURED_CATEGORY_TABS_SETTING_KEY]: JSON.stringify(normalized),
   });
+};
+
+// 홈 설치후기 슬라이드에 고정할 후기 글 id 목록(순서 포함).
+// 한 번도 저장하지 않았으면 null → 홈은 기존처럼 최신 후기를 자동으로 보여 준다.
+// 저장된 뒤에는(빈 목록 포함) 목록에 있는 글만 그 순서대로 보여 준다.
+export const normalizeHomeReviewPins = (value?: string | null): string[] | null => {
+  if (value === undefined || value === null) return null;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return null;
+
+    const seen = new Set<string>();
+    return parsed.reduce<string[]>((acc, item) => {
+      const id = typeof item === "string" ? item.trim() : "";
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        acc.push(id);
+      }
+      return acc;
+    }, []);
+  } catch {
+    return null;
+  }
+};
+
+export const getHomeReviewPins = async (): Promise<string[] | null> => {
+  const settings = await getSiteSettings([HOME_REVIEW_PINS_SETTING_KEY]);
+  return normalizeHomeReviewPins(settings[HOME_REVIEW_PINS_SETTING_KEY]);
+};
+
+export const upsertHomeReviewPins = async (postIds: string[]): Promise<void> => {
+  const normalized = normalizeHomeReviewPins(JSON.stringify(postIds)) || [];
+  await upsertSiteSettings({
+    [HOME_REVIEW_PINS_SETTING_KEY]: JSON.stringify(normalized),
+  });
+};
+
+// 고정 목록을 지워서 홈이 다시 최신 후기를 자동으로 보여 주게 한다.
+export const clearHomeReviewPins = async (): Promise<void> => {
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .delete()
+    .eq("setting_key", HOME_REVIEW_PINS_SETTING_KEY);
+
+  if (error) throw error;
 };
 
 export const getBoardCategories = async (

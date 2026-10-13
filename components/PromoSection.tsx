@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Container } from './ui/Container';
 import { getTabMenuItems, getBoardPosts, TabMenuItem, BoardPostType, BoardPost } from '../src/api/cmsApi';
+import { getHomeReviewPins } from '../src/api/siteSettingsApi';
 import { stripGnbContentImages } from '../src/utils/gnbContent';
 
 const BOARD_PATH: Record<BoardPostType, string> = { notice: '/notice', event: '/event', review: '/review' };
@@ -24,6 +25,8 @@ const postPath = (post: BoardPost) => post.id ? `${BOARD_PATH[post.board_type]}/
 export const PromoSection: React.FC = () => {
   const [tabs, setTabs] = useState<TabMenuItem[]>([]);
   const [posts, setPosts] = useState<BoardPost[]>([]);
+  // 관리자가 고정한 후기 id 목록. null 이면 아직 설정하지 않은 상태(최신 후기를 자동 표시).
+  const [pins, setPins] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [resetting, setResetting] = useState(false);
@@ -31,8 +34,14 @@ export const PromoSection: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getTabMenuItems(), getBoardPosts()]).then(([tabData, postData]) => {
+    Promise.all([
+      getTabMenuItems(),
+      getBoardPosts(),
+      // 고정 목록을 못 불러와도 후기 섹션은 기존처럼(최신 후기) 보이게 한다.
+      getHomeReviewPins().catch(() => null),
+    ]).then(([tabData, postData, pinData]) => {
       if (cancelled) return;
+      setPins(pinData);
       setTabs(tabData.filter(tab => resolveBoardType(tab)));
       setPosts([...postData].sort((a, b) =>
         new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime() ||
@@ -43,7 +52,12 @@ export const PromoSection: React.FC = () => {
   }, []);
 
   const showReviews = tabs.some(tab => resolveBoardType(tab) === 'review');
-  const reviews = showReviews ? posts.filter(post => post.board_type === 'review').slice(0, 4) : [];
+  const reviewPosts = posts.filter(post => post.board_type === 'review');
+  // 고정 목록이 있으면 그 순서대로(삭제되었거나 비활성인 글은 건너뜀), 없으면 최신 4개.
+  const pinnedReviews = pins
+    ? pins.map(id => reviewPosts.find(post => post.id === id)).filter((post): post is BoardPost => !!post)
+    : null;
+  const reviews = showReviews ? (pinnedReviews ?? reviewPosts.slice(0, 4)) : [];
   const newsTabs = tabs.filter(tab => resolveBoardType(tab) !== 'review');
   const count = reviews.length;
   const logicalIndex = count ? (activeIndex + count) % count : 0;
