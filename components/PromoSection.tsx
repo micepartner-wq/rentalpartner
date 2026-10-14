@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Container } from './ui/Container';
 import { getTabMenuItems, getBoardPosts, TabMenuItem, BoardPostType, BoardPost } from '../src/api/cmsApi';
 import { getHomeReviewSlides, HomeReviewSlide } from '../src/api/siteSettingsApi';
@@ -134,7 +134,10 @@ export const PromoSection: React.FC = () => {
                 {slides.map((slide, index) => (
                   <article key={index} data-review-card data-active={index === trackIndex}
                     className="review-gallery-card relative overflow-hidden rounded-[22px] border border-slate-200/70 bg-white">
-                  <div aria-hidden={index !== trackIndex || undefined} className="group block h-full">
+                  <Link to={BOARD_PATH.review} tabIndex={index === trackIndex ? 0 : -1}
+                    aria-hidden={index !== trackIndex || undefined}
+                    className="group block h-full focus-visible:outline-offset-[-3px]"
+                    style={{ pointerEvents: index === trackIndex ? 'auto' : 'none' }}>
                     <div className="relative aspect-[4/3] overflow-hidden bg-slate-200 md:aspect-[16/10]">
                       {(slide.image_url || slide.mobile_image_url) ? (
                         <picture>
@@ -148,8 +151,11 @@ export const PromoSection: React.FC = () => {
                       <p className="text-xs font-semibold text-[#26808b]">{slide.category || '설치 사례'}</p>
                       <h3 className="mt-2.5 line-clamp-2 break-keep text-[20px] font-bold leading-[1.45] tracking-[-0.025em] text-[#001E45] md:text-[23px]">{slide.title}</h3>
                       <p className="mt-3 line-clamp-2 text-[13px] leading-[1.8] text-slate-500 md:text-sm">{slide.description || '공간에 맞춰 완성한 렌탈 설치 현장을 만나보세요.'}</p>
+                      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-semibold text-[#001E45]">
+                        설치후기 더 보기 <ArrowRight size={18} className="transition-transform group-hover:translate-x-1 motion-reduce:transform-none" />
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                   {index === trackIndex + 1 && (
                     <button type="button" className="review-gallery-preview"
                       aria-label={'다음 설치후기 보기: ' + slide.title}
