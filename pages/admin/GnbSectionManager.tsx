@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Edit2, Eye, EyeOff, Image as ImageIcon, Loader2, Pin, Plus, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
+import { Edit2, Eye, EyeOff, Image as ImageIcon, Loader2, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import {
     addBoardPost,
     addTabMenuItem,
@@ -14,14 +14,11 @@ import {
     updateBoardPost
 } from '../../src/api/cmsApi';
 import { uploadImage } from '../../src/api/storageApi';
-import { HomeReviewPinOrder } from '../../components/admin/HomeReviewPinOrder';
+import { HomeReviewSlidesManager } from '../../components/admin/HomeReviewSlidesManager';
 import {
     BoardCategoryBoardType,
-    clearHomeReviewPins,
     getBoardCategories,
-    getHomeReviewPins,
-    upsertBoardCategories,
-    upsertHomeReviewPins
+    upsertBoardCategories
 } from '../../src/api/siteSettingsApi';
 import {
     buildGnbContentImageToken,
@@ -140,9 +137,6 @@ export const GnbSectionManager = () => {
         review: [],
     });
     const [savedBoardCategorySnapshot, setSavedBoardCategorySnapshot] = useState('');
-    // 홈 설치후기 슬라이드에 고정한 후기 id(순서 포함). null 이면 고정 목록 없음 → 홈은 최신 후기를 자동 표시.
-    const [homeReviewPins, setHomeReviewPins] = useState<string[] | null>(null);
-    const [pinBusy, setPinBusy] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [tabSaving, setTabSaving] = useState(false);
@@ -167,15 +161,12 @@ export const GnbSectionManager = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [postData, tabData, noticeCategories, reviewCategories, pinData] = await Promise.all([
+            const [postData, tabData, noticeCategories, reviewCategories] = await Promise.all([
                 getAllBoardPosts(),
                 getAllTabMenuItems(),
                 getBoardCategories('notice'),
                 getBoardCategories('review'),
-                // 고정 목록을 못 읽어도 나머지 화면은 열리게 한다.
-                getHomeReviewPins().catch(() => null),
             ]);
-            setHomeReviewPins(pinData);
             const categorySettings: Record<BoardCategoryBoardType, string[]> = {
                 notice: normalizeCategoryList(noticeCategories),
                 review: normalizeCategoryList(reviewCategories),
@@ -505,72 +496,6 @@ export const GnbSectionManager = () => {
         }
     };
 
-    // 지금 홈에 자동으로 보이는 후기(활성 후기 중 최신 4개). 고정 목록이 없을 때만 의미가 있다.
-    const autoShownReviewIds = useMemo(
-        () =>
-            posts
-                .filter((post) => post.board_type === 'review' && post.is_active && post.id)
-                .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-                .slice(0, 4)
-                .map((post) => post.id as string),
-        [posts],
-    );
-
-    // 핀을 누르면 그 후기를 홈 슬라이드 고정 목록에 넣거나 뺀다(바로 저장).
-    // 고정 목록이 아직 없으면 "지금 홈에 보이는 후기들"을 출발점으로 삼아, 누른 글을 더하거나 뺀다.
-    const persistPins = async (next: string[]) => {
-        setPinBusy(true);
-        try {
-            await upsertHomeReviewPins(next);
-            setHomeReviewPins(next);
-        } catch (error) {
-            console.error('Failed to save home review pins:', error);
-            alert('홈 슬라이드 고정 저장에 실패했습니다.');
-        } finally {
-            setPinBusy(false);
-        }
-    };
-
-    // 현재 고정 목록(없으면 홈에 자동으로 보이는 후기들)에서, 삭제된 글의 id 는 걸러낸다.
-    const currentPinBase = () => {
-        const reviewIds = new Set(posts.filter((item) => item.board_type === 'review').map((item) => item.id));
-        return (homeReviewPins ?? autoShownReviewIds).filter((id) => reviewIds.has(id));
-    };
-
-    const togglePin = async (post: BoardPost) => {
-        if (!post.id || pinBusy) return;
-        const base = currentPinBase();
-        await persistPins(base.includes(post.id) ? base.filter((id) => id !== post.id) : [...base, post.id]);
-    };
-
-    const unpinById = async (id: string) => {
-        if (pinBusy || !homeReviewPins) return;
-        await persistPins(homeReviewPins.filter((pinId) => pinId !== id));
-    };
-
-    const movePin = async (index: number, direction: -1 | 1) => {
-        if (pinBusy || !homeReviewPins) return;
-        const target = index + direction;
-        if (target < 0 || target >= homeReviewPins.length) return;
-        const next = [...homeReviewPins];
-        [next[index], next[target]] = [next[target], next[index]];
-        await persistPins(next);
-    };
-
-    const resetPinsToAuto = async () => {
-        if (!confirm('고정 목록을 지우고, 홈에 최신 후기가 자동으로 표시되도록 되돌릴까요?')) return;
-        setPinBusy(true);
-        try {
-            await clearHomeReviewPins();
-            setHomeReviewPins(null);
-        } catch (error) {
-            console.error('Failed to clear home review pins:', error);
-            alert('되돌리기에 실패했습니다.');
-        } finally {
-            setPinBusy(false);
-        }
-    };
-
     const toggleActive = async (post: BoardPost) => {
         if (!post.id) return;
         try {
@@ -687,44 +612,8 @@ export const GnbSectionManager = () => {
                     </div>
                 </div>
 
-                {/* 홈 설치후기 슬라이드 상태: 각 후기의 핀 아이콘으로 고정/해제한다 */}
-                {(filterType === 'all' || filterType === 'review') && (
-                    <div className="mb-6 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                        <p className="flex items-start gap-2 text-slate-600">
-                            <Pin size={16} className="mt-0.5 shrink-0 text-[#001E45]" />
-                            {homeReviewPins === null ? (
-                                <span>
-                                    <b className="text-slate-800">홈 설치후기 슬라이드: 자동</b> (최신 후기 4개). 설치후기의 핀 아이콘을 누르면 선택한 후기만 고정해서 보여 줍니다.
-                                </span>
-                            ) : (
-                                <span>
-                                    <b className="text-slate-800">홈 설치후기 슬라이드: 고정 {homeReviewPins.length}개</b> — 핀을 누른 순서대로 홈에 보입니다. 새 후기는 핀을 눌러야 홈에 나옵니다.
-                                </span>
-                            )}
-                        </p>
-                        {homeReviewPins !== null && (
-                            <button
-                                type="button"
-                                onClick={resetPinsToAuto}
-                                disabled={pinBusy}
-                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                                <RotateCcw size={13} /> 최신 후기 자동으로 되돌리기
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* 고정된 후기를 홈에 보이는 순서대로 위쪽에 모아 보여 주고, 여기서 순서를 바꾼다 */}
-                {(filterType === 'all' || filterType === 'review') && homeReviewPins !== null && (
-                    <HomeReviewPinOrder
-                        pins={homeReviewPins}
-                        posts={posts}
-                        busy={pinBusy}
-                        onMove={movePin}
-                        onRemove={unpinById}
-                    />
-                )}
+                {/* 홈 설치후기 슬라이드: 게시글과 연결하지 않고 관리자가 직접 만든다 */}
+                {(filterType === 'all' || filterType === 'review') && <HomeReviewSlidesManager />}
 
                 {/* Bottom Section: Post Management (Main Content) */}
                 <div className="space-y-6">
@@ -808,12 +697,6 @@ export const GnbSectionManager = () => {
                                                     {post.mobile_image_url && (
                                                         <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 px-1.5 py-0.5 rounded-md font-bold">MOBILE IMG</span>
                                                     )}
-                                                    {post.board_type === 'review' && (homeReviewPins ? homeReviewPins.includes(post.id as string) : autoShownReviewIds.includes(post.id as string)) && (
-                                                        <span className="inline-flex items-center gap-1 text-[10px] bg-[#001E45] text-white px-1.5 py-0.5 rounded-md font-bold">
-                                                            <Pin size={10} />
-                                                            {homeReviewPins ? `HOME ${homeReviewPins.indexOf(post.id as string) + 1}` : 'HOME 자동'}
-                                                        </span>
-                                                    )}
                                                     {(post.board_type === 'notice' || post.board_type === 'review') && post.category && (
                                                         <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded-md font-bold">
                                                             {post.category}
@@ -840,44 +723,16 @@ export const GnbSectionManager = () => {
 
                                             {/* Action Buttons (Floating on Right) */}
                                             <div className="absolute top-4 right-4 flex flex-col gap-1">
-                                                {post.board_type === 'review' ? (
-                                                    // 설치후기: 눈(노출 여부) 대신 핀(홈 슬라이드 고정). 노출 여부는 '내용 수정'의 활성 체크박스에서 바꾼다.
-                                                    (() => {
-                                                        const pinned = homeReviewPins
-                                                            ? homeReviewPins.includes(post.id as string)
-                                                            : autoShownReviewIds.includes(post.id as string);
-                                                        const autoMode = homeReviewPins === null;
-                                                        return (
-                                                            <button
-                                                                onClick={() => togglePin(post)}
-                                                                disabled={pinBusy}
-                                                                aria-pressed={pinned}
-                                                                className={`p-2 rounded-xl transition-all shadow-sm border disabled:opacity-50 ${pinned
-                                                                        ? autoMode
-                                                                            ? 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100'
-                                                                            : 'bg-[#001E45] text-white border-[#001E45] hover:bg-slate-800'
-                                                                        : 'bg-white text-slate-400 border-slate-100 hover:text-[#001E45] hover:bg-[#001E45]/5 hover:border-[#001E45]/10'
-                                                                    }`}
-                                                                title={pinned
-                                                                    ? (autoMode ? '지금 홈에 자동으로 보이는 후기입니다 (누르면 고정 목록으로 전환하고 이 후기를 뺍니다)' : '홈 슬라이드 고정 해제')
-                                                                    : '홈 슬라이드에 고정'}
-                                                            >
-                                                                <Pin size={18} className={pinned ? 'fill-current' : ''} />
-                                                            </button>
-                                                        );
-                                                    })()
-                                                ) : (
-                                                    <button
-                                                        onClick={() => toggleActive(post)}
-                                                        className={`p-2 rounded-xl transition-all shadow-sm border border-slate-100 ${post.is_active
-                                                                ? 'bg-white text-green-600 hover:bg-green-50 hover:border-green-100'
-                                                                : 'bg-slate-50 text-slate-400 hover:bg-white hover:text-green-600 hover:border-green-100'
-                                                            }`}
-                                                        title={post.is_active ? '비활성화' : '활성화'}
-                                                    >
-                                                        {post.is_active ? <Eye size={18} /> : <EyeOff size={18} />}
-                                                    </button>
-                                                )}
+                                                <button
+                                                    onClick={() => toggleActive(post)}
+                                                    className={`p-2 rounded-xl transition-all shadow-sm border border-slate-100 ${post.is_active
+                                                            ? 'bg-white text-green-600 hover:bg-green-50 hover:border-green-100'
+                                                            : 'bg-slate-50 text-slate-400 hover:bg-white hover:text-green-600 hover:border-green-100'
+                                                        }`}
+                                                    title={post.is_active ? '비활성화' : '활성화'}
+                                                >
+                                                    {post.is_active ? <Eye size={18} /> : <EyeOff size={18} />}
+                                                </button>
                                                 <button
                                                     onClick={() => openEditModal(post)}
                                                     className="p-2 bg-white text-slate-400 hover:text-[#001E45] hover:bg-[#001E45]/5 hover:border-[#001E45]/10 rounded-xl transition-all shadow-sm border border-slate-100"

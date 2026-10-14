@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import type { BoardPostType } from "./cmsApi";
+import { isSafeSceneImageUrl } from "../utils/installationScenes";
 
 export interface SiteSetting {
   setting_key: string;
@@ -10,7 +11,7 @@ export interface SiteSetting {
 const TABLE_NAME = "site_settings";
 export const PRODUCT_PRICE_DISPLAY_MODE_SETTING_KEY = "product_price_display_mode";
 export const HOME_FEATURED_CATEGORY_TABS_SETTING_KEY = "home_featured_category_tabs";
-export const HOME_REVIEW_PINS_SETTING_KEY = "home_review_pins";
+export const HOME_REVIEW_SLIDES_SETTING_KEY = "home_review_slides";
 export const BOARD_CATEGORY_SETTING_KEYS = {
   notice: "notice_board_categories",
   review: "review_board_categories",
@@ -188,50 +189,74 @@ export const upsertHomeFeaturedCategoryTabs = async (
   });
 };
 
-// 홈 설치후기 슬라이드에 고정할 후기 글 id 목록(순서 포함).
-// 한 번도 저장하지 않았으면 null → 홈은 기존처럼 최신 후기를 자동으로 보여 준다.
-// 저장된 뒤에는(빈 목록 포함) 목록에 있는 글만 그 순서대로 보여 준다.
-export const normalizeHomeReviewPins = (value?: string | null): string[] | null => {
-  if (value === undefined || value === null) return null;
+// 홈 "설치후기" 슬라이드. 게시판 글과 연결하지 않고 관리자가 직접 만드는 보여 주기용 슬라이드다.
+// site_settings 에 JSON 목록(순서 포함)으로 저장한다. 값이 없거나 깨져 있으면 빈 목록(= 홈에서 후기 영역 숨김).
+export interface HomeReviewSlide {
+  id: string;
+  image_url: string;
+  mobile_image_url?: string;
+  category?: string;
+  title: string;
+  description?: string;
+}
+
+export const HOME_REVIEW_SLIDES_MAX = 20;
+
+export const createHomeReviewSlideId = (): string =>
+  "slide-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+
+const cleanText = (value: unknown, max: number): string =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
+
+export const normalizeHomeReviewSlides = (value?: string | null): HomeReviewSlide[] => {
+  if (!value) return [];
 
   try {
     const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return null;
+    if (!Array.isArray(parsed)) return [];
 
-    const seen = new Set<string>();
-    return parsed.reduce<string[]>((acc, item) => {
-      const id = typeof item === "string" ? item.trim() : "";
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        acc.push(id);
-      }
-      return acc;
-    }, []);
+    const usedIds = new Set<string>();
+    return parsed
+      .reduce<HomeReviewSlide[]>((acc, raw) => {
+        if (!raw || typeof raw !== "object") return acc;
+        const item = raw as Record<string, unknown>;
+
+        const image = typeof item.image_url === "string" ? item.image_url.trim() : "";
+        const title = cleanText(item.title, 120);
+        // 이미지 주소가 안전하지 않거나 제목이 없으면 홈에 내보내지 않는다.
+        if (!isSafeSceneImageUrl(image) || !title) return acc;
+
+        const mobile = typeof item.mobile_image_url === "string" ? item.mobile_image_url.trim() : "";
+        let id = cleanText(item.id, 64);
+        if (!id || usedIds.has(id)) id = createHomeReviewSlideId();
+        usedIds.add(id);
+
+        acc.push({
+          id,
+          image_url: image,
+          mobile_image_url: isSafeSceneImageUrl(mobile) ? mobile : undefined,
+          category: cleanText(item.category, 40) || undefined,
+          title,
+          description: cleanText(item.description, 300) || undefined,
+        });
+        return acc;
+      }, [])
+      .slice(0, HOME_REVIEW_SLIDES_MAX);
   } catch {
-    return null;
+    return [];
   }
 };
 
-export const getHomeReviewPins = async (): Promise<string[] | null> => {
-  const settings = await getSiteSettings([HOME_REVIEW_PINS_SETTING_KEY]);
-  return normalizeHomeReviewPins(settings[HOME_REVIEW_PINS_SETTING_KEY]);
+export const getHomeReviewSlides = async (): Promise<HomeReviewSlide[]> => {
+  const settings = await getSiteSettings([HOME_REVIEW_SLIDES_SETTING_KEY]);
+  return normalizeHomeReviewSlides(settings[HOME_REVIEW_SLIDES_SETTING_KEY]);
 };
 
-export const upsertHomeReviewPins = async (postIds: string[]): Promise<void> => {
-  const normalized = normalizeHomeReviewPins(JSON.stringify(postIds)) || [];
+export const upsertHomeReviewSlides = async (slides: HomeReviewSlide[]): Promise<void> => {
+  const normalized = normalizeHomeReviewSlides(JSON.stringify(slides));
   await upsertSiteSettings({
-    [HOME_REVIEW_PINS_SETTING_KEY]: JSON.stringify(normalized),
+    [HOME_REVIEW_SLIDES_SETTING_KEY]: JSON.stringify(normalized),
   });
-};
-
-// 고정 목록을 지워서 홈이 다시 최신 후기를 자동으로 보여 주게 한다.
-export const clearHomeReviewPins = async (): Promise<void> => {
-  const { error } = await supabase
-    .from(TABLE_NAME)
-    .delete()
-    .eq("setting_key", HOME_REVIEW_PINS_SETTING_KEY);
-
-  if (error) throw error;
 };
 
 export const getBoardCategories = async (

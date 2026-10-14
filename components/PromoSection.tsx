@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Container } from './ui/Container';
 import { getTabMenuItems, getBoardPosts, TabMenuItem, BoardPostType, BoardPost } from '../src/api/cmsApi';
-import { getHomeReviewPins } from '../src/api/siteSettingsApi';
-import { stripGnbContentImages } from '../src/utils/gnbContent';
+import { getHomeReviewSlides, HomeReviewSlide } from '../src/api/siteSettingsApi';
 
 const BOARD_PATH: Record<BoardPostType, string> = { notice: '/notice', event: '/event', review: '/review' };
 const resolveBoardType = (tab: TabMenuItem): BoardPostType | null => {
@@ -18,15 +17,13 @@ const resolveBoardType = (tab: TabMenuItem): BoardPostType | null => {
   if (name.includes('후기')) return 'review';
   return null;
 };
-const preview = (post: BoardPost) => (post.summary || '').trim() ||
-  stripGnbContentImages(post.content || '').replace(/\s+/g, ' ').trim();
 const postPath = (post: BoardPost) => post.id ? `${BOARD_PATH[post.board_type]}/${post.id}` : BOARD_PATH[post.board_type];
 
 export const PromoSection: React.FC = () => {
   const [tabs, setTabs] = useState<TabMenuItem[]>([]);
   const [posts, setPosts] = useState<BoardPost[]>([]);
-  // 관리자가 고정한 후기 id 목록. null 이면 아직 설정하지 않은 상태(최신 후기를 자동 표시).
-  const [pins, setPins] = useState<string[] | null>(null);
+  // 관리자가 직접 만든 설치후기 슬라이드(게시글과 연결하지 않는 보여 주기용). 없으면 후기 영역을 숨긴다.
+  const [reviews, setReviews] = useState<HomeReviewSlide[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [resetting, setResetting] = useState(false);
@@ -37,11 +34,11 @@ export const PromoSection: React.FC = () => {
     Promise.all([
       getTabMenuItems(),
       getBoardPosts(),
-      // 고정 목록을 못 불러와도 후기 섹션은 기존처럼(최신 후기) 보이게 한다.
-      getHomeReviewPins().catch(() => null),
-    ]).then(([tabData, postData, pinData]) => {
+      // 슬라이드를 못 불러와도 공지/이벤트 영역은 보이게 한다.
+      getHomeReviewSlides().catch(() => [] as HomeReviewSlide[]),
+    ]).then(([tabData, postData, slideData]) => {
       if (cancelled) return;
-      setPins(pinData);
+      setReviews(slideData);
       setTabs(tabData.filter(tab => resolveBoardType(tab)));
       setPosts([...postData].sort((a, b) =>
         new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime() ||
@@ -51,13 +48,7 @@ export const PromoSection: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
-  const showReviews = tabs.some(tab => resolveBoardType(tab) === 'review');
-  const reviewPosts = posts.filter(post => post.board_type === 'review');
-  // 고정 목록이 있으면 그 순서대로(삭제되었거나 비활성인 글은 건너뜀), 없으면 최신 4개.
-  const pinnedReviews = pins
-    ? pins.map(id => reviewPosts.find(post => post.id === id)).filter((post): post is BoardPost => !!post)
-    : null;
-  const reviews = showReviews ? (pinnedReviews ?? reviewPosts.slice(0, 4)) : [];
+  const showReviews = reviews.length > 0;
   const newsTabs = tabs.filter(tab => resolveBoardType(tab) !== 'review');
   const count = reviews.length;
   const logicalIndex = count ? (activeIndex + count) % count : 0;
@@ -96,7 +87,8 @@ export const PromoSection: React.FC = () => {
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#001E45]" aria-label="설치후기 불러오는 중" /></div>;
-  if (!tabs.length) return null;
+  // 보여 줄 슬라이드도, 공지/이벤트 줄도 없으면 빈 여백만 남지 않게 섹션 자체를 숨긴다.
+  if (!showReviews && newsTabs.length === 0) return null;
 
   return (
     <section aria-label="설치후기와 소식" className="overflow-hidden bg-[#f5f7fa] py-14 md:py-20 lg:py-24">
@@ -139,34 +131,28 @@ export const PromoSection: React.FC = () => {
                 }}
                 className="review-gallery min-w-0">
                 <div className="review-gallery-track" data-resetting={resetting} style={{ '--review-index': trackIndex } as React.CSSProperties}>
-                {slides.map((post, index) => (
+                {slides.map((slide, index) => (
                   <article key={index} data-review-card data-active={index === trackIndex}
                     className="review-gallery-card relative overflow-hidden rounded-[22px] border border-slate-200/70 bg-white">
-                  <Link to={postPath(post)} tabIndex={index === trackIndex ? 0 : -1}
-                    aria-hidden={index !== trackIndex || undefined}
-                    className="group block h-full focus-visible:outline-offset-[-3px]"
-                    style={{ pointerEvents: index === trackIndex ? 'auto' : 'none' }}>
+                  <div aria-hidden={index !== trackIndex || undefined} className="group block h-full">
                     <div className="relative aspect-[4/3] overflow-hidden bg-slate-200 md:aspect-[16/10]">
-                      {(post.image_url || post.mobile_image_url) ? (
+                      {(slide.image_url || slide.mobile_image_url) ? (
                         <picture>
-                          {post.mobile_image_url && <source media="(max-width: 767px)" srcSet={post.mobile_image_url} />}
-                          <img src={post.image_url || post.mobile_image_url} alt={post.title} loading="lazy" draggable={false} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.035] motion-reduce:transform-none motion-reduce:transition-none" />
+                          {slide.mobile_image_url && <source media="(max-width: 767px)" srcSet={slide.mobile_image_url} />}
+                          <img src={slide.image_url || slide.mobile_image_url} alt={slide.title} loading="lazy" draggable={false} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.035] motion-reduce:transform-none motion-reduce:transition-none" />
                         </picture>
                       ) : <div className="flex h-full items-center justify-center text-sm text-slate-500">설치 현장 이야기</div>}
                       <span className="absolute left-5 top-5 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] text-[#001E45]">PROJECT {String(index % count + 1).padStart(2, '0')}</span>
                     </div>
                     <div className="p-5 md:p-7">
-                      <p className="text-xs font-semibold text-[#26808b]">{post.category || '설치 사례'}</p>
-                      <h3 className="mt-2.5 line-clamp-2 break-keep text-[20px] font-bold leading-[1.45] tracking-[-0.025em] text-[#001E45] md:text-[23px]">{post.title}</h3>
-                      <p className="mt-3 line-clamp-2 text-[13px] leading-[1.8] text-slate-500 md:text-sm">{preview(post) || '공간에 맞춰 완성한 렌탈 설치 현장을 만나보세요.'}</p>
-                      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-semibold text-[#001E45]">
-                        현장 자세히 보기 <ArrowRight size={18} className="transition-transform group-hover:translate-x-1 motion-reduce:transform-none" />
-                      </div>
+                      <p className="text-xs font-semibold text-[#26808b]">{slide.category || '설치 사례'}</p>
+                      <h3 className="mt-2.5 line-clamp-2 break-keep text-[20px] font-bold leading-[1.45] tracking-[-0.025em] text-[#001E45] md:text-[23px]">{slide.title}</h3>
+                      <p className="mt-3 line-clamp-2 text-[13px] leading-[1.8] text-slate-500 md:text-sm">{slide.description || '공간에 맞춰 완성한 렌탈 설치 현장을 만나보세요.'}</p>
                     </div>
-                  </Link>
+                  </div>
                   {index === trackIndex + 1 && (
                     <button type="button" className="review-gallery-preview"
-                      aria-label={'다음 설치후기 보기: ' + post.title}
+                      aria-label={'다음 설치후기 보기: ' + slide.title}
                       onClick={event => {
                         move(1);
                         event.currentTarget.closest<HTMLElement>('[role="region"]')?.focus({ preventScroll: true });
