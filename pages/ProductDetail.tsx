@@ -4,6 +4,8 @@ import { Container } from "../components/ui/Container";
 import { ProductDetailHero } from "../components/products/ProductDetailHero";
 import { PackageDetailHeader, PackageSpaceShowcase, PackageCompositionOverview, PackageServiceGuide, PackageOriginalDetails, PackageCombinationControls } from "../components/products/PackageDetailSections";
 import "../components/products/PackageDetail.css";
+import { ProductInstallationCases } from "../components/products/ProductInstallationCases";
+import { normalizeInstallationCases } from "../src/utils/installationCases";
 import { RelatedProducts } from "../components/products/RelatedProducts";
 import {
   Loader2,
@@ -1260,7 +1262,8 @@ export const ProductDetailPage: React.FC = () => {
                         <h2 className="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">상품을 자세히 살펴보세요</h2>
                         <p className="mt-2 text-sm leading-relaxed text-slate-500">상세 사양과 대여 진행 방법을 확인할 수 있습니다.</p>
                       </div>
-                      {product.description ? <div className="prose prose-slate max-w-none w-full leading-relaxed [&>p]:m-0 [&>img]:m-0 [&>img]:w-full [&>img]:rounded-xl" dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, "<br/>") }} /> : <div className="flex flex-col items-center justify-center space-y-3 rounded-2xl bg-slate-50 py-20 text-slate-500"><Package size={40} className="text-slate-300" /><p className="font-medium">상세정보를 준비중입니다.</p></div>}
+                      {product.id && <ProductInstallationCases productId={product.id} productName={product.name} cases={product.installation_cases} />}
+                      {product.description ? <div className="prose prose-slate max-w-none w-full leading-relaxed [&>p]:m-0 [&>img]:m-0 [&>img]:w-full [&>img]:rounded-xl" dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, "<br/>") }} /> : normalizeInstallationCases(product.installation_cases).length > 0 ? null : <div className="flex flex-col items-center justify-center space-y-3 rounded-2xl bg-slate-50 py-20 text-slate-500"><Package size={40} className="text-slate-300" /><p className="font-medium">상세정보를 준비중입니다.</p></div>}
                     </div>
                   )}
                   {activeTab === "guide" && (

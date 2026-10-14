@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import PackageInstallationEditor from '../../components/admin/PackageInstallationEditor';
+import InstallationCasesEditor from '../../components/admin/InstallationCasesEditor';
+import { normalizeInstallationCases, getInstallationCasesValidationError, type InstallationCase } from '../../src/utils/installationCases';
 import { normalizeInstallationScenes, getInstallationScenesValidationError, type InstallationScene } from '../../src/utils/installationScenes';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Upload, Image as ImageIcon, Grid3X3, Bold, Italic, Underline, Eye, EyeOff, Tag } from 'lucide-react';
 import { getProducts, addProduct, updateProduct, deleteProduct, isGeneralBasicProduct, Product, ProductCatalogType, ProductOptionGroup, ProductOptionSelectionMode } from '../../src/api/productApi';
@@ -101,6 +103,7 @@ const createEmptyFormData = (
     food_components: [] as any[],
     product_options: [] as ProductOptionGroup[],
     installation_scenes: [] as InstallationScene[],
+    installation_cases: [] as InstallationCase[],
 });
 
 const createEmptyProductOptionGroup = (): ProductOptionGroup => ({
@@ -265,6 +268,7 @@ export const ProductManager = () => {
             food_components: product.food_components || [],
             product_options: product.product_options || [],
             installation_scenes: normalizeInstallationScenes(product.installation_scenes),
+            installation_cases: normalizeInstallationCases(product.installation_cases),
         });
 
         if (product.product_type === 'cooperative') {
@@ -288,6 +292,8 @@ export const ProductManager = () => {
         if (saving || installationEditorBusy) return;
         const sceneError = getInstallationScenesValidationError(formData.installation_scenes);
         if (sceneError) { alert(sceneError); return; }
+        const caseError = getInstallationCasesValidationError(formData.installation_cases);
+        if (caseError) { alert(caseError); return; }
         setSaving(true);
         try {
             const clean = (arr: any[]) => (arr || []).filter(i => i.name).map(({ _category, ...rest }) => rest);
@@ -312,6 +318,8 @@ export const ProductManager = () => {
                 food_components: isPackageProduct ? clean(formData.food_components) : [],
                 product_options: isBasicProductEditor ? normalizeProductOptions(formData.product_options) : [],
                 installation_scenes: isPackageProduct ? formData.installation_scenes : [],
+                // 설치 사례 사진은 일반 기본 상품 전용이다. 패키지는 위 installation_scenes 를 쓴다.
+                installation_cases: formData.catalog_type !== 'package' && isBasicProductEditor ? formData.installation_cases : [],
             };
 
             let id;
@@ -1057,6 +1065,17 @@ export const ProductManager = () => {
                                         onChange={(scenes) => setFormData((current) => ({ ...current, installation_scenes: scenes }))}
                                         products={products}
                                         representativeImageUrl={formData.image_url}
+                                        onBusyChange={setInstallationEditorBusy}
+                                    />
+                                </fieldset>
+                            )}
+
+                            {formData.catalog_type !== 'package' && isBasicProductEditor && (
+                                <fieldset disabled={saving} className="min-w-0">
+                                    <InstallationCasesEditor
+                                        key={editingProduct?.id || 'new-product'}
+                                        value={formData.installation_cases}
+                                        onChange={(cases) => setFormData((current) => ({ ...current, installation_cases: cases }))}
                                         onBusyChange={setInstallationEditorBusy}
                                     />
                                 </fieldset>

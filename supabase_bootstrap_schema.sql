@@ -141,6 +141,7 @@ create table if not exists public.products (
     food_components jsonb not null default '[]'::jsonb,
     product_options jsonb not null default '[]'::jsonb,
     installation_scenes jsonb not null default '[]'::jsonb,
+    installation_cases jsonb not null default '[]'::jsonb,
     created_at timestamp with time zone not null default now()
 );
 

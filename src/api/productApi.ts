@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { getInstallationScenesValidationError, isMissingInstallationScenesError, normalizeInstallationScenes } from '../utils/installationScenes';
 import type { InstallationScene } from '../utils/installationScenes';
+import { getInstallationCasesValidationError, isMissingInstallationCasesError, normalizeInstallationCases } from '../utils/installationCases';
+import type { InstallationCase } from '../utils/installationCases';
 
 export type ProductCatalogType = 'general' | 'package';
 
@@ -27,6 +29,7 @@ export interface Product {
     short_description?: string;
     image_url?: string;
     installation_scenes?: InstallationScene[];
+    installation_cases?: InstallationCase[];
     stock: number;
     discount_rate?: number;
     created_at?: string;
@@ -260,6 +263,14 @@ const validateSceneWrite = (value: InstallationScene[] | undefined) => {
     if (error) throw new Error(error);
 };
 
+const validateCaseWrite = (value: InstallationCase[] | undefined) => {
+    if (value === undefined) return;
+    const error = getInstallationCasesValidationError(value);
+    if (error) throw new Error(error);
+};
+
+const INSTALLATION_CASES_SCHEMA_MESSAGE = '상세 상단 이미지 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_product_installation_cases.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
+
 const INSTALLATION_SCHEMA_MESSAGE = '설치사진 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_product_installation_scenes.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
 
 // Fetch only the referenced products; a deleted product is simply absent from the result.
@@ -281,6 +292,8 @@ export const addProduct = async (product: Omit<Product, 'id' | 'created_at'>): P
     const userData = { ...product };
     validateSceneWrite(userData.installation_scenes);
     if (userData.installation_scenes !== undefined) userData.installation_scenes = normalizeInstallationScenes(userData.installation_scenes);
+    validateCaseWrite(userData.installation_cases);
+    if (userData.installation_cases !== undefined) userData.installation_cases = normalizeInstallationCases(userData.installation_cases);
 
     // ???ㅺ강? ?類???????筌???獄쏅똻???棺??짆?먰맪???癰귙끋源?
     // if (!userData.product_code) ...
@@ -296,6 +309,12 @@ export const addProduct = async (product: Omit<Product, 'id' | 'created_at'>): P
         if (error) throw error;
         return data;
     } catch (error) {
+        if (isMissingInstallationCasesError(error) && userData.installation_cases !== undefined) {
+            if (userData.installation_cases.length > 0) throw new Error(INSTALLATION_CASES_SCHEMA_MESSAGE);
+            // Older databases can still save products that have no installation case photos.
+            const { installation_cases, ...legacyProduct } = userData;
+            return addProduct(legacyProduct);
+        }
         if (isMissingInstallationScenesError(error) && userData.installation_scenes !== undefined) {
             if (userData.installation_scenes.length > 0) throw new Error(INSTALLATION_SCHEMA_MESSAGE);
             // Older databases can still save products that have no installation photos.
@@ -329,6 +348,8 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
     updates = { ...updates };
     validateSceneWrite(updates.installation_scenes);
     if (updates.installation_scenes !== undefined) updates.installation_scenes = normalizeInstallationScenes(updates.installation_scenes);
+    validateCaseWrite(updates.installation_cases);
+    if (updates.installation_cases !== undefined) updates.installation_cases = normalizeInstallationCases(updates.installation_cases);
     try {
         const { data, error } = await supabase
             .from('products')
@@ -340,6 +361,11 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
         if (error) throw error;
         return data;
     } catch (error) {
+        if (isMissingInstallationCasesError(error) && updates.installation_cases !== undefined) {
+            if (updates.installation_cases.length > 0) throw new Error(INSTALLATION_CASES_SCHEMA_MESSAGE);
+            const { installation_cases, ...legacyUpdates } = updates;
+            return updateProduct(id, legacyUpdates);
+        }
         if (isMissingInstallationScenesError(error) && updates.installation_scenes !== undefined) {
             if (updates.installation_scenes.length > 0) throw new Error(INSTALLATION_SCHEMA_MESSAGE);
             const { installation_scenes, ...legacyUpdates } = updates;
