@@ -50,3 +50,6 @@ backups/
 
 # All log files (dev server / build logs)
 *.log
+
+# Local tool config / scratch files
+.tmpconfig/
