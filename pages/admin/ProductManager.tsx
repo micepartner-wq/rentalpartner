@@ -3,7 +3,7 @@ import PackageInstallationEditor from '../../components/admin/PackageInstallatio
 import InstallationCasesEditor from '../../components/admin/InstallationCasesEditor';
 import { normalizeInstallationCases, getInstallationCasesValidationError, type InstallationCase } from '../../src/utils/installationCases';
 import { normalizeInstallationScenes, getInstallationScenesValidationError, getIncludedProductQuantities, type InstallationScene } from '../../src/utils/installationScenes';
-import { Plus, Pencil, Trash2, X, Save, Loader2, Upload, Image as ImageIcon, Grid3X3, Bold, Italic, Underline, Eye, EyeOff, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Save, Loader2, Upload, Image as ImageIcon, Grid3X3, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Eye, EyeOff, Tag } from 'lucide-react';
 import { getProducts, addProduct, updateProduct, deleteProduct, isGeneralBasicProduct, Product, ProductCatalogType, ProductOptionGroup, ProductOptionSelectionMode } from '../../src/api/productApi';
 import { getSections, getProductSections, setProductSections, Section } from '../../src/api/sectionApi';
 import { getAllNavMenuItems, NavMenuItem } from '../../src/api/cmsApi';
@@ -38,7 +38,22 @@ const SimpleEditor = ({ initialValue, onChange }: { initialValue: string, onChan
         if (contentRef.current) onChange(contentRef.current.innerHTML);
     };
 
+    // 글자 크기 선택 칸을 누르면 선택 영역이 풀릴 수 있어, 에디터 안 마지막 선택 영역을 기억해 둔다.
+    const savedRange = useRef<Range | null>(null);
+    const saveRange = () => {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0 && contentRef.current?.contains(selection.anchorNode)) {
+            savedRange.current = selection.getRangeAt(0).cloneRange();
+        }
+    };
+
     const execCmd = (command: string, value: string | undefined = undefined) => {
+        const selection = window.getSelection();
+        if (savedRange.current && contentRef.current && !contentRef.current.contains(selection?.anchorNode ?? null)) {
+            contentRef.current.focus();
+            selection?.removeAllRanges();
+            selection?.addRange(savedRange.current);
+        }
         document.execCommand(command, false, value);
         handleInput();
         contentRef.current?.focus();
@@ -72,12 +87,24 @@ const SimpleEditor = ({ initialValue, onChange }: { initialValue: string, onChan
                 <button type="button" onClick={() => execCmd('italic')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700"><Italic size={18} /></button>
                 <button type="button" onClick={() => execCmd('underline')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700"><Underline size={18} /></button>
                 <div className="w-px h-6 bg-slate-300 mx-1"></div>
+                <button type="button" aria-label="왼쪽 정렬" onMouseDown={(e) => e.preventDefault()} onClick={() => execCmd('justifyLeft')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700"><AlignLeft size={18} /></button>
+                <button type="button" aria-label="가운데 정렬" onMouseDown={(e) => e.preventDefault()} onClick={() => execCmd('justifyCenter')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700"><AlignCenter size={18} /></button>
+                <button type="button" aria-label="오른쪽 정렬" onMouseDown={(e) => e.preventDefault()} onClick={() => execCmd('justifyRight')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700"><AlignRight size={18} /></button>
+                <select aria-label="글자 크기" value="" onChange={(e) => { if (e.target.value) execCmd('fontSize', e.target.value); }} className="ml-1 h-8 rounded border border-slate-300 bg-white px-1 text-xs text-slate-700">
+                    <option value="">글자 크기</option>
+                    <option value="2">작게</option>
+                    <option value="3">보통</option>
+                    <option value="4">조금 크게</option>
+                    <option value="5">크게</option>
+                    <option value="6">아주 크게</option>
+                </select>
+                <div className="w-px h-6 bg-slate-300 mx-1"></div>
                 <button type="button" onClick={handleImage} disabled={uploading} className="p-1.5 hover:bg-slate-200 rounded text-slate-700 flex items-center gap-1">
                     {uploading ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />}
                     <span className="text-xs font-medium">이미지</span>
                 </button>
             </div>
-            <div ref={contentRef} className="flex-1 p-4 overflow-y-auto outline-none prose prose-sm max-w-none bg-white" contentEditable onInput={handleInput} />
+            <div ref={contentRef} className="flex-1 p-4 overflow-y-auto outline-none prose prose-sm max-w-none bg-white" contentEditable onInput={handleInput} onKeyUp={saveRange} onMouseUp={saveRange} onBlur={saveRange} />
         </div>
     );
 };
