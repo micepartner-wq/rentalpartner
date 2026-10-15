@@ -10,7 +10,11 @@
 .pig-scene-image{display:block;width:100%;height:auto}
 .pig-photo-error{padding:60px 24px;text-align:center;color:#5e6c77;font-size:14px}
 .pig-hotspot{position:absolute;z-index:1;width:44px;height:44px;border:0;padding:7px;transform:translate(-50%,-50%);display:grid;place-items:center;background:transparent;cursor:pointer}
-.pig-hotspot>span{display:grid;place-items:center;width:30px;height:30px;background:#087f8c;color:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 12px #09263d44;font-size:23px;font-weight:400;line-height:1;transition:background .15s,transform .15s}
+.pig-hotspot>span{display:grid;place-items:center;width:30px;height:30px;background:#087f8c;color:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 12px #09263d44;font-size:0;line-height:0;position:relative;transition:background .15s,transform .15s}
+.pig-hotspot>span::before,.pig-hotspot>span::after{content:"";position:absolute;left:50%;top:50%;background:#fff;border-radius:1px;transform:translate(-50%,-50%);transition:opacity .15s}
+.pig-hotspot>span::before{width:12px;height:2px}
+.pig-hotspot>span::after{width:2px;height:12px}
+.pig-hotspot.is-selected>span::after{opacity:0}
 .pig-hotspot:hover>span,.pig-hotspot.is-selected>span{background:#09263d;transform:scale(1.13)}
 .pig-detail{position:absolute;z-index:2;left:clamp(12px,calc(var(--pig-x) - 150px),calc(100% - 312px));top:clamp(12px,calc(var(--pig-y) + 25px),calc(100% - 156px));width:300px;height:144px;max-height:calc(100% - 24px);overflow:auto;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:18px 30px 18px 14px;background:#fff;border:1px solid #e6ecec;border-radius:12px;box-shadow:0 12px 35px #09263d26}
 .pig-close{position:absolute;top:0;right:0;width:36px;height:36px;display:grid;place-items:center;border:0;background:transparent;color:#62737c;font-size:23px;cursor:pointer}

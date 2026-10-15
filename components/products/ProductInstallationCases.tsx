@@ -31,7 +31,7 @@ export function ProductInstallationCases({ productId, productName, cases }: { pr
         <section className="mb-10 space-y-6">
             {photos.length > 0 && (
                 <div>
-                    <ul className={`grid gap-3 ${photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+                    <ul className="grid grid-cols-1 gap-3">
                         {photos.map((photo, index) => (
                             <li key={photo.id} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                                 <img src={photo.image_url} alt={productName ? `${productName} ${index + 1}` : ''} loading="lazy" draggable={false}

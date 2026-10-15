@@ -70,6 +70,22 @@ export const normalizeInstallationScenes = (value: unknown): InstallationScene[]
     });
 };
 
+/**
+ * '기본 포함'으로 태그한 상품과 기본 수량을 구한다. 수량은 한 사진 안의 같은 상품 태그 개수이고,
+ * 여러 사진에 나오면 사진별 개수 중 최댓값을 쓴다(같은 장비를 여러 각도로 찍어도 부풀지 않게).
+ */
+export const getIncludedProductQuantities = (scenes: InstallationScene[]): Array<{ product_id: string; quantity: number }> => {
+    const result = new Map<string, number>();
+    for (const scene of scenes) {
+        const counts = new Map<string, number>();
+        for (const hotspot of scene.hotspots) {
+            if (hotspot.inclusion === 'included') counts.set(hotspot.product_id, (counts.get(hotspot.product_id) || 0) + 1);
+        }
+        for (const [productId, count] of counts) result.set(productId, Math.max(result.get(productId) || 0, count));
+    }
+    return [...result].map(([product_id, quantity]) => ({ product_id, quantity }));
+};
+
 /** Strict write validation avoids silently discarding an administrator's edits. */
 export const getInstallationScenesValidationError = (value: unknown): string | null => {
     if (!Array.isArray(value)) return '설치사진 형식을 확인해주세요.';

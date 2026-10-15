@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import PackageInstallationEditor from '../../components/admin/PackageInstallationEditor';
 import InstallationCasesEditor from '../../components/admin/InstallationCasesEditor';
 import { normalizeInstallationCases, getInstallationCasesValidationError, type InstallationCase } from '../../src/utils/installationCases';
-import { normalizeInstallationScenes, getInstallationScenesValidationError, type InstallationScene } from '../../src/utils/installationScenes';
+import { normalizeInstallationScenes, getInstallationScenesValidationError, getIncludedProductQuantities, type InstallationScene } from '../../src/utils/installationScenes';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Upload, Image as ImageIcon, Grid3X3, Bold, Italic, Underline, Eye, EyeOff, Tag } from 'lucide-react';
 import { getProducts, addProduct, updateProduct, deleteProduct, isGeneralBasicProduct, Product, ProductCatalogType, ProductOptionGroup, ProductOptionSelectionMode } from '../../src/api/productApi';
 import { getSections, getProductSections, setProductSections, Section } from '../../src/api/sectionApi';
@@ -417,6 +417,32 @@ export const ProductManager = () => {
         () => sortMenuItems(menuItems) && products.filter((product) => isGeneralBasicProduct(product)),
         [menuItems, products],
     );
+
+    // 설치사진의 '기본 포함' 태그 상품으로 기본 필수 구성품 목록을 통째로 바꾼다(기존 목록은 덮어씀).
+    const importComponentsFromScenes = () => {
+        const included = getIncludedProductQuantities(formData.installation_scenes);
+        if (included.length === 0) {
+            alert("설치사진에 '기본 포함'으로 태그한 상품이 없습니다. 사진 태그에서 포함 여부를 '기본 포함'으로 설정해 주세요.");
+            return;
+        }
+        const next: Array<{ name: string; quantity: number }> = [];
+        const skipped: string[] = [];
+        for (const { product_id, quantity } of included) {
+            const product = products.find((candidate) => candidate.id === product_id);
+            if (!product) { skipped.push(product_id); continue; }
+            if (!next.some((item) => item.name === product.name)) next.push({ name: product.name, quantity });
+        }
+        if (next.length === 0) {
+            alert('태그된 상품을 상품 목록에서 찾지 못했습니다. 삭제된 상품일 수 있어 목록을 바꾸지 않았습니다.');
+            return;
+        }
+        const summary = next.map((item) => item.name + ' ×' + item.quantity).join('\n');
+        const message = (formData.basic_components.length ? '현재 기본 필수 구성품 ' + formData.basic_components.length + '개가 모두 사라지고 아래 ' : '아래 ') +
+            next.length + '개로 채워집니다.\n\n' + summary +
+            (skipped.length ? '\n\n(상품을 찾지 못해 제외: ' + skipped.length + '건)' : '') + '\n\n계속할까요?';
+        if (!window.confirm(message)) return;
+        setFormData({ ...formData, basic_components: next });
+    };
 
     const { byId: productCategoryById, childrenByParentId: productChildrenByParentId } = useMemo(
         () => buildCategoryMaps(productCategories),
@@ -1237,7 +1263,10 @@ export const ProductManager = () => {
                                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                                         <div className="flex justify-between items-center mb-4">
                                             <span className="font-bold text-slate-800 underline decoration-blue-200 underline-offset-4">기본 필수 구성품 (가격 포함)</span>
-                                            <button type="button" onClick={() => setFormData({ ...formData, basic_components: [...formData.basic_components, { name: '', quantity: 1 }] })} className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-all font-bold">+ 항목 추가</button>
+                                            <div className="flex gap-2">
+                                                <button type="button" onClick={importComponentsFromScenes} className="text-xs bg-teal-50 text-teal-800 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition-all font-bold">사진 태그로 덮어쓰기</button>
+                                                <button type="button" onClick={() => setFormData({ ...formData, basic_components: [...formData.basic_components, { name: '', quantity: 1 }] })} className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-all font-bold">+ 항목 추가</button>
+                                            </div>
                                         </div>
                                         {packageComponentParentMenus.length > 0 && (
                                             <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
