@@ -1,0 +1,9 @@
+.zh-root img{cursor:pointer;-webkit-user-drag:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.zh-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.88);display:flex;flex-direction:column}
+.zh-scroll{flex:1;min-height:0;overflow:auto;padding:56px 12px 44px;-webkit-overflow-scrolling:touch}
+.zh-scroll img{display:block;margin:0 auto;-webkit-user-drag:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+/* 화면에 들어오게 보이되, 작은 화면에서는 글씨가 읽히도록 화면 폭의 2배까지 원본 크기로 보여 주고 스크롤한다. */
+.zh-scroll img{cursor:pointer;max-width:100%;height:auto}
+@media(max-width:768px){.zh-scroll img{max-width:200vw;width:auto}}
+.zh-close{position:absolute;top:10px;right:12px;z-index:2;width:44px;height:44px;border-radius:999px;border:0;background:rgba(255,255,255,.92);color:#0f172a;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.zh-hint{position:absolute;left:0;right:0;bottom:12px;text-align:center;color:rgba(255,255,255,.75);font-size:12px;pointer-events:none;margin:0}

@@ -67,7 +67,7 @@ test('패키지의 +태그에서 이 상품이 연결된 패키지를 자동으�
     };
     const { findPackagesContainingProduct } = loadTs('components/products/ProductInstallationCases.tsx', mocks);
     const scene = hotspotProductIds => ({ id: 's' + hotspotProductIds.join(''), image_url: 'https://example.com/s.jpg', caption: '',
-        hotspots: hotspotProductIds.map((pid, i) => ({ id: 'h' + i + pid, product_id: pid, x: 10, y: 10, inclusion: 'included' })) });
+        hotspots: hotspotProductIds.map((pid, i) => ({ id: 'h' + i + pid, product_id: pid, x: 10, y: 10 })) });
     const pkg = (id, ids, extra = {}) => ({ id, name: id, price: 0, stock: 1, catalog_type: 'package', installation_scenes: [scene(ids)], ...extra });
     const list = [
         pkg('pkg-a', ['monitor', 'chair']),

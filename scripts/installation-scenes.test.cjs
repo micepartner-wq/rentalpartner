@@ -33,7 +33,7 @@ function loadTs(relativePath, mocks = {}, cache = new Map()) {
 const util = loadTs('src/utils/installationScenes.ts');
 const productId = '11111111-1111-4111-8111-111111111111';
 const fixture = () => [{ id: 'scene-1', image_url: '/discovery-office.svg', caption: '설치 사례', hotspots: [
-    { id: 'tag-1', product_id: productId, x: 0, y: 100, inclusion: 'included' },
+    { id: 'tag-1', product_id: productId, x: 0, y: 100 },
 ] }];
 
 function mockApi(responses) {
@@ -63,7 +63,7 @@ test('read normalization tolerates legacy rows and rejects unsafe image/coordina
     assert.deepEqual(util.normalizeInstallationScenes(undefined), []);
     assert.deepEqual(util.normalizeInstallationScenes({}), []);
     const scenes = fixture();
-    scenes[0].hotspots.push({ id: 'bad', product_id: productId, x: Infinity, y: 10, inclusion: 'included' });
+    scenes[0].hotspots.push({ id: 'bad', product_id: productId, x: Infinity, y: 10 });
     scenes[0].hotspots.push({ ...scenes[0].hotspots[0] });
     const normalized = util.normalizeInstallationScenes([...scenes, { ...scenes[0] }, { id: 'unsafe', image_url: 'javascript:alert(1)', hotspots: [] }]);
     assert.equal(normalized.length, 1);
@@ -78,7 +78,7 @@ test('image URLs allow local/HTTP(S), reject protocol tricks and embedded creden
 });
 test('save validation rejects incomplete tags, duplicate IDs and limits without data loss', () => {
     assert.equal(util.getInstallationScenesValidationError(fixture()), null);
-    for (const patch of [{ x: -1 }, { y: 101 }, { x: NaN }, { product_id: '' }, { inclusion: 'unknown' }]) {
+    for (const patch of [{ x: -1 }, { y: 101 }, { x: NaN }, { product_id: '' }]) {
         const scenes = fixture(); Object.assign(scenes[0].hotspots[0], patch);
         assert.ok(util.getInstallationScenesValidationError(scenes));
     }
@@ -132,16 +132,16 @@ test('linked product reads deduplicate and batch; missing products do not create
     assert.equal(calls.length, 2); assert.equal(calls[0].in[1].length, 50); assert.equal(calls[1].in[1].length, 1);
     assert.equal(result.length, 1);
 });
-test('hero only replaces representative image for packages with usable installation photos', () => {
+test('hero always shows the representative image slider (package pages use PackageSpaceShowcase instead)', () => {
     const apiStub = { getProductsByIds: async () => [] };
     const { ProductDetailHero } = loadTs('components/products/ProductDetailHero.tsx', { '../../src/api/productApi': apiStub });
     const product = { id: 'package', name: '테스트 패키지', image_url: '/representative.jpg', price: 0, stock: 1, installation_scenes: fixture() };
     const render = value => renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(ProductDetailHero, { product: value })));
-    assert.match(render({ ...product, catalog_type: 'general' }), /representative.jpg/);
-    assert.doesNotMatch(render({ ...product, catalog_type: 'general' }), /pig-gallery/);
-    assert.match(render({ ...product, catalog_type: 'package' }), /pig-gallery/);
-    assert.match(render({ ...product, catalog_type: 'package' }), /사진 속 렌탈 상품/);
-    assert.match(render({ ...product, catalog_type: 'package', installation_scenes: [] }), /representative.jpg/);
+    for (const catalog_type of ['general', 'package']) {
+        assert.match(render({ ...product, catalog_type }), /representative.jpg/);
+        assert.doesNotMatch(render({ ...product, catalog_type }), /pig-gallery/);
+    }
+    assert.match(render({ ...product, gallery_images: ['/extra-1.jpg', '/extra-2.jpg'] }), /aria-roledescription="carousel"/);
 });
 
 
@@ -154,10 +154,10 @@ test('package redesign shows real selected quantities and leaves long original d
     assert.match(header, /모듈형 오피스 패키지/);
     assert.match(header, /2종의 상품/);
     assert.doesNotMatch(header, /20인|추천 인원/);
-    const overview = renderToStaticMarkup(React.createElement(sections.PackageCompositionOverview, {
-        product, componentProducts: [], quantities: { '책상': 4, '의자': 0 }, onCustomize() {},
-    }));
-    assert.match(overview, /4개/); assert.match(overview, /기본 6개/); assert.match(overview, /선택 제외/);
+    // 구성 안내는 '패키지 구성과 수량' 한 구간으로 합쳐졌다(옛 '한눈에 보는 패키지 구성'은 없음).
+    assert.equal(sections.PackageCompositionOverview, undefined);
+    assert.match(header, /구성과 수량/);
+    assert.doesNotMatch(header, /href="#package-components"/);
     const original = renderToStaticMarkup(React.createElement(sections.PackageOriginalDetails, { description: '<img src="/legacy-poster.jpg" alt="상세 사양" />' }));
     assert.match(original, /<details/); assert.doesNotMatch(original, /<details[^>]* open/); assert.match(original, /legacy-poster.jpg/);
 });
@@ -172,4 +172,46 @@ test('package combination quantity controls render independently of desktop quot
     assert.ok(markup.includes('책상 / 화이트 선택 제외'));
     assert.match(markup, /value="3"/);
     assert.doesNotMatch(markup, /pkd-sidebar/);
+});
+
+test('legacy inclusion field is tolerated on read and dropped from the normalized tags', () => {
+    const legacy = fixture();
+    legacy[0].hotspots[0].inclusion = 'reference';
+    assert.equal(util.getInstallationScenesValidationError(legacy), null);
+    assert.equal('inclusion' in util.normalizeInstallationScenes(legacy)[0].hotspots[0], false);
+});
+
+const tagScenes = (...tags) => [{ id: 's', image_url: '/x.jpg', caption: '', hotspots: tags.map(([product_id], i) => ({ id: 't' + i, product_id, x: 1, y: 1 })) }];
+const catalog = [{ id: 'chair', name: '의자' }, { id: 'pc', name: 'PC' }, { id: 'mon', name: '모니터' }];
+
+test('tag quantities count tags per photo and take the max across photos', () => {
+    const scenes = [
+        ...tagScenes(['mon'], ['mon'], ['chair']),
+        { id: 's2', image_url: '/y.jpg', caption: '', hotspots: [{ id: 'a', product_id: 'chair', x: 1, y: 1 }, { id: 'b', product_id: 'chair', x: 2, y: 2 }, { id: 'c', product_id: 'chair', x: 3, y: 3 }] },
+    ];
+    assert.deepEqual(util.getTaggedProductQuantities(scenes), [{ product_id: 'mon', quantity: 2 }, { product_id: 'chair', quantity: 3 }]);
+});
+
+test('new tags add components, removing the last tag removes the component, everything else is untouched', () => {
+    const current = [{ name: '의자', quantity: 10 }, { name: '복합기', quantity: 1 }];
+    const before = tagScenes(['chair']);
+    // 새 상품 태그 → 추가(수량 = 태그 개수), 기존 항목과 수량은 그대로
+    const added = util.applyTagChangesToComponents(current, before, tagScenes(['chair'], ['pc'], ['pc']), catalog);
+    assert.deepEqual(added, [{ name: '의자', quantity: 10 }, { name: '복합기', quantity: 1 }, { name: 'PC', quantity: 2 }]);
+    // 이미 구성품에 있는 상품을 태그해도 수량 유지
+    assert.deepEqual(util.applyTagChangesToComponents(current, tagScenes(['pc']), tagScenes(['pc'], ['chair']), catalog), current);
+    // 마지막 태그 삭제 → 구성품에서도 제거. 태그와 무관한 항목(복합기)은 유지
+    assert.deepEqual(util.applyTagChangesToComponents(current, before, tagScenes(['pc']), catalog), [{ name: '복합기', quantity: 1 }, { name: 'PC', quantity: 1 }]);
+    // 같은 상품의 태그가 남아 있으면 제거하지 않음
+    assert.deepEqual(util.applyTagChangesToComponents(current, tagScenes(['chair'], ['chair']), tagScenes(['chair']), catalog), current);
+    // 상품 목록에 없는 ID는 무시
+    assert.deepEqual(util.applyTagChangesToComponents(current, before, tagScenes(['chair'], ['gone']), catalog), current);
+});
+
+test('overwrite replaces components with tagged products, keeping quantities of same-name items', () => {
+    const current = [{ name: '복합기', quantity: 1 }, { name: 'PC', quantity: 10, model_name: 'i5' }];
+    const { components, missing } = util.buildComponentsFromScenes(current, tagScenes(['chair'], ['pc'], ['mon'], ['mon'], ['gone']), catalog);
+    assert.deepEqual(components, [{ name: '의자', quantity: 1 }, { name: 'PC', quantity: 10, model_name: 'i5' }, { name: '모니터', quantity: 2 }]);
+    assert.equal(missing, 1);
+    assert.deepEqual(util.buildComponentsFromScenes(current, [], catalog), { components: [], missing: 0 });
 });

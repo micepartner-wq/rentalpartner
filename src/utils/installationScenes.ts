@@ -1,12 +1,9 @@
-export type InstallationInclusion = 'included' | 'optional' | 'reference';
-
 export interface InstallationHotspot {
     id: string;
     product_id: string;
     /** Position in the uncropped image, expressed as a percentage. */
     x: number;
     y: number;
-    inclusion: InstallationInclusion;
 }
 
 export interface InstallationScene {
@@ -18,12 +15,6 @@ export interface InstallationScene {
 
 export const MAX_INSTALLATION_SCENES = 12;
 export const MAX_INSTALLATION_HOTSPOTS = 30;
-
-export const INSTALLATION_INCLUSION_LABELS: Record<InstallationInclusion, string> = {
-    included: '기본 포함',
-    optional: '추가 선택',
-    reference: '연출 참고 · 별도 확인',
-};
 
 export const isSafeSceneImageUrl = (value: unknown): value is string => {
     if (typeof value !== 'string' || !value.trim() || value !== value.trim() || /[\\\s]/.test(value)) return false;
@@ -42,11 +33,9 @@ const isId = (value: unknown): value is string =>
     typeof value === 'string' && value.length > 0 && value.length <= 128 && value === value.trim();
 const isCoordinate = (value: unknown): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
-const isInclusion = (value: unknown): value is InstallationInclusion =>
-    value === 'included' || value === 'optional' || value === 'reference';
 const isHotspot = (value: unknown): value is InstallationHotspot =>
     isRecord(value) && isId(value.id) && isId(value.product_id) &&
-    isCoordinate(value.x) && isCoordinate(value.y) && isInclusion(value.inclusion);
+    isCoordinate(value.x) && isCoordinate(value.y);
 
 /** Tolerant read for legacy/malformed rows; never infer which products are included. */
 export const normalizeInstallationScenes = (value: unknown): InstallationScene[] => {
@@ -64,26 +53,73 @@ export const normalizeInstallationScenes = (value: unknown): InstallationScene[]
             return true;
         }).slice(0, MAX_INSTALLATION_HOTSPOTS).map((hotspot) => ({
             id: hotspot.id, product_id: hotspot.product_id,
-            x: hotspot.x, y: hotspot.y, inclusion: hotspot.inclusion,
+            x: hotspot.x, y: hotspot.y,
         }));
         return { id: scene.id, image_url: scene.image_url, caption: typeof scene.caption === 'string' ? scene.caption.slice(0, 200) : '', hotspots };
     });
 };
 
 /**
- * '기본 포함'으로 태그한 상품과 기본 수량을 구한다. 수량은 한 사진 안의 같은 상품 태그 개수이고,
+ * 사진에 태그한 상품과 기본 수량. 수량은 한 사진 안의 같은 상품 태그 개수이고,
  * 여러 사진에 나오면 사진별 개수 중 최댓값을 쓴다(같은 장비를 여러 각도로 찍어도 부풀지 않게).
  */
-export const getIncludedProductQuantities = (scenes: InstallationScene[]): Array<{ product_id: string; quantity: number }> => {
+export const getTaggedProductQuantities = (scenes: InstallationScene[]): Array<{ product_id: string; quantity: number }> => {
     const result = new Map<string, number>();
     for (const scene of scenes) {
         const counts = new Map<string, number>();
-        for (const hotspot of scene.hotspots) {
-            if (hotspot.inclusion === 'included') counts.set(hotspot.product_id, (counts.get(hotspot.product_id) || 0) + 1);
-        }
+        for (const hotspot of scene.hotspots) counts.set(hotspot.product_id, (counts.get(hotspot.product_id) || 0) + 1);
         for (const [productId, count] of counts) result.set(productId, Math.max(result.get(productId) || 0, count));
     }
     return [...result].map(([product_id, quantity]) => ({ product_id, quantity }));
+};
+
+type NamedQuantity = { name: string; quantity: number };
+type NamedProduct = { id?: string; name: string };
+
+/**
+ * 태그를 바꿀 때 구성품 목록을 따라 맞춘다.
+ * - 새로 태그한 상품은 구성품에 추가한다(이미 있으면 그대로, 새 항목의 수량은 태그 개수).
+ * - 마지막 태그를 지운 상품은 구성품에서도 뺀다.
+ * - 그 밖의 항목과 수량은 건드리지 않는다.
+ */
+export const applyTagChangesToComponents = <T extends NamedQuantity>(
+    current: T[],
+    before: InstallationScene[],
+    after: InstallationScene[],
+    products: NamedProduct[],
+): T[] => {
+    const idsOf = (scenes: InstallationScene[]) => new Set(scenes.flatMap((scene) => scene.hotspots.map((hotspot) => hotspot.product_id)));
+    const beforeIds = idsOf(before);
+    const afterIds = idsOf(after);
+    const quantities = new Map(getTaggedProductQuantities(after).map((item) => [item.product_id, item.quantity]));
+    const nameOf = (id: string) => products.find((product) => product.id === id)?.name;
+    let next = [...current];
+    for (const id of beforeIds) {
+        const name = nameOf(id);
+        if (!afterIds.has(id) && name) next = next.filter((item) => item.name !== name);
+    }
+    for (const id of afterIds) {
+        const name = nameOf(id);
+        if (!beforeIds.has(id) && name && !next.some((item) => item.name === name)) next.push({ name, quantity: quantities.get(id) || 1 } as T);
+    }
+    return next;
+};
+
+/** 덮어쓰기: 구성품을 사진에 태그한 상품 전체로 바꾼다. 같은 이름의 기존 항목은 수량(과 부가 정보)을 유지한다. */
+export const buildComponentsFromScenes = <T extends NamedQuantity>(
+    current: T[],
+    scenes: InstallationScene[],
+    products: NamedProduct[],
+): { components: T[]; missing: number } => {
+    const components: T[] = [];
+    let missing = 0;
+    for (const { product_id, quantity } of getTaggedProductQuantities(scenes)) {
+        const product = products.find((candidate) => candidate.id === product_id);
+        if (!product) { missing += 1; continue; }
+        if (components.some((item) => item.name === product.name)) continue;
+        components.push(current.find((item) => item.name === product.name) ?? ({ name: product.name, quantity } as T));
+    }
+    return { components, missing };
 };
 
 /** Strict write validation avoids silently discarding an administrator's edits. */
@@ -100,7 +136,7 @@ export const getInstallationScenesValidationError = (value: unknown): string | n
         if (!Array.isArray(scene.hotspots) || scene.hotspots.length > MAX_INSTALLATION_HOTSPOTS) return label + '의 상품 태그는 최대 30개까지 등록할 수 있습니다.';
         const hotspotIds = new Set<string>();
         for (const hotspot of scene.hotspots) {
-            if (!isHotspot(hotspot) || hotspotIds.has(hotspot.id)) return label + '의 상품 태그, 위치 및 포함 여부를 확인해주세요.';
+            if (!isHotspot(hotspot) || hotspotIds.has(hotspot.id)) return label + '의 상품 태그와 위치를 확인해주세요.';
             hotspotIds.add(hotspot.id);
         }
     }

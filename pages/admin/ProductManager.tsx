@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import PackageInstallationEditor from '../../components/admin/PackageInstallationEditor';
 import InstallationCasesEditor from '../../components/admin/InstallationCasesEditor';
+import ProductGalleryEditor from '../../components/admin/ProductGalleryEditor';
+import { useImageCrop } from '../../components/admin/ImageCropDialog';
+import { normalizeGalleryImages, getGalleryImagesValidationError } from '../../src/utils/productGallery';
 import { normalizeInstallationCases, getInstallationCasesValidationError, type InstallationCase } from '../../src/utils/installationCases';
-import { normalizeInstallationScenes, getInstallationScenesValidationError, getIncludedProductQuantities, type InstallationScene } from '../../src/utils/installationScenes';
+import { normalizeInstallationScenes, getInstallationScenesValidationError, applyTagChangesToComponents, buildComponentsFromScenes, type InstallationScene } from '../../src/utils/installationScenes';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Upload, Image as ImageIcon, Grid3X3, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Eye, EyeOff, Tag } from 'lucide-react';
 import { getProducts, addProduct, updateProduct, deleteProduct, isGeneralBasicProduct, Product, ProductCatalogType, ProductOptionGroup, ProductOptionSelectionMode } from '../../src/api/productApi';
 import { getSections, getProductSections, setProductSections, Section } from '../../src/api/sectionApi';
@@ -131,6 +134,7 @@ const createEmptyFormData = (
     product_options: [] as ProductOptionGroup[],
     installation_scenes: [] as InstallationScene[],
     installation_cases: [] as InstallationCase[],
+    gallery_images: [] as string[],
 });
 
 const createEmptyProductOptionGroup = (): ProductOptionGroup => ({
@@ -179,6 +183,7 @@ export const ProductManager = () => {
     const [selectedSections, setSelectedSections] = useState<string[]>([]);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { requestCrop, cropDialog } = useImageCrop();
 
     const [formData, setFormData] = useState(() => createEmptyFormData('general', 'basic'));
 
@@ -296,6 +301,7 @@ export const ProductManager = () => {
             product_options: product.product_options || [],
             installation_scenes: normalizeInstallationScenes(product.installation_scenes),
             installation_cases: normalizeInstallationCases(product.installation_cases),
+            gallery_images: normalizeGalleryImages(product.gallery_images),
         });
 
         if (product.product_type === 'cooperative') {
@@ -321,6 +327,8 @@ export const ProductManager = () => {
         if (sceneError) { alert(sceneError); return; }
         const caseError = getInstallationCasesValidationError(formData.installation_cases);
         if (caseError) { alert(caseError); return; }
+        const galleryError = getGalleryImagesValidationError(formData.gallery_images);
+        if (galleryError) { alert(galleryError); return; }
         setSaving(true);
         try {
             const clean = (arr: any[]) => (arr || []).filter(i => i.name).map(({ _category, ...rest }) => rest);
@@ -347,6 +355,8 @@ export const ProductManager = () => {
                 installation_scenes: isPackageProduct ? formData.installation_scenes : [],
                 // 설치 사례 사진은 일반 기본 상품 전용이다. 패키지는 위 installation_scenes 를 쓴다.
                 installation_cases: formData.catalog_type !== 'package' && isBasicProductEditor ? formData.installation_cases : [],
+                // 추가 대표 이미지 슬라이드는 일반 기본 상품 전용이다(패키지는 설치사진 갤러리를 쓴다).
+                gallery_images: formData.catalog_type !== 'package' && isBasicProductEditor ? formData.gallery_images : [],
             };
 
             let id;
@@ -445,30 +455,21 @@ export const ProductManager = () => {
         [menuItems, products],
     );
 
-    // 설치사진의 '기본 포함' 태그 상품으로 기본 필수 구성품 목록을 통째로 바꾼다(기존 목록은 덮어씀).
-    const importComponentsFromScenes = () => {
-        const included = getIncludedProductQuantities(formData.installation_scenes);
-        if (included.length === 0) {
-            alert("설치사진에 '기본 포함'으로 태그한 상품이 없습니다. 사진 태그에서 포함 여부를 '기본 포함'으로 설정해 주세요.");
+    // 설치사진에 태그한 상품 전체로 기본 필수 구성품을 덮어쓴다(기존 목록은 사라지고, 같은 이름은 수량 유지).
+    const overwriteComponentsFromScenes = () => {
+        const { components, missing } = buildComponentsFromScenes(formData.basic_components, formData.installation_scenes, products);
+        if (components.length === 0) {
+            alert(missing > 0
+                ? '태그된 상품을 상품 목록에서 찾지 못했습니다. 삭제된 상품일 수 있어 목록을 바꾸지 않았습니다.'
+                : '설치사진에 태그한 상품이 없습니다. 사진에서 상품을 먼저 연결해 주세요.');
             return;
         }
-        const next: Array<{ name: string; quantity: number }> = [];
-        const skipped: string[] = [];
-        for (const { product_id, quantity } of included) {
-            const product = products.find((candidate) => candidate.id === product_id);
-            if (!product) { skipped.push(product_id); continue; }
-            if (!next.some((item) => item.name === product.name)) next.push({ name: product.name, quantity });
-        }
-        if (next.length === 0) {
-            alert('태그된 상품을 상품 목록에서 찾지 못했습니다. 삭제된 상품일 수 있어 목록을 바꾸지 않았습니다.');
-            return;
-        }
-        const summary = next.map((item) => item.name + ' ×' + item.quantity).join('\n');
+        const summary = components.map((item) => item.name + ' ×' + item.quantity).join('\n');
         const message = (formData.basic_components.length ? '현재 기본 필수 구성품 ' + formData.basic_components.length + '개가 모두 사라지고 아래 ' : '아래 ') +
-            next.length + '개로 채워집니다.\n\n' + summary +
-            (skipped.length ? '\n\n(상품을 찾지 못해 제외: ' + skipped.length + '건)' : '') + '\n\n계속할까요?';
+            components.length + '개로 채워집니다.\n\n' + summary +
+            (missing ? '\n\n(상품을 찾지 못해 제외: ' + missing + '건)' : '') + '\n\n계속할까요?';
         if (!window.confirm(message)) return;
-        setFormData({ ...formData, basic_components: next });
+        setFormData({ ...formData, basic_components: components });
     };
 
     const { byId: productCategoryById, childrenByParentId: productChildrenByParentId } = useMemo(
@@ -656,7 +657,11 @@ export const ProductManager = () => {
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
+        const picked = e.target.files?.[0];
+        e.target.value = '';
+        if (!picked) return;
+        // 올리기 전에 원하는 부분만 자를 수 있다(취소하면 올리지 않음).
+        const file = await requestCrop(picked);
         if (!file) return;
         setUploading(true);
         try {
@@ -825,17 +830,6 @@ export const ProductManager = () => {
                 const packageProducts = products.filter(p =>
                     p.product_type === 'basic' || !p.product_type
                 );
-
-                // 상품에 있는 카테고리(중분류) 목록
-                // 대분류 목록: 상품이 있는 중분류의 상위 카테고리
-                const parentMenus = menuItems
-                    .filter(m => !m.category) // 대분류는 category가 null
-                    .filter(parent => {
-                        // 해당 대분류의 중분류 중 상품이 있는 것이 있는지 확인
-                        const children = menuItems.filter(child => child.category === parent.name);
-                        return children.length > 0;
-                    })
-                    .sort((a, b) => a.display_order - b.display_order);
 
                 // 선택된 대분류의 중분류 (상품이 있는 것만)
                 const childMenus = selectedParentCategoryFilter
@@ -1097,9 +1091,21 @@ export const ProductManager = () => {
                                         {uploading && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><Loader2 className="animate-spin text-[#001E45]" /></div>}
                                     </div>
                                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageUpload} />
+                                    {cropDialog}
                                     <input type="url" placeholder="또는 이미지 URL 입력" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="w-full px-4 py-2 text-sm border rounded-lg outline-none" />
                                 </div>
                             </div>
+
+                            {formData.catalog_type !== 'package' && isBasicProductEditor && (
+                                <fieldset disabled={saving} className="min-w-0">
+                                    <ProductGalleryEditor
+                                        key={'gallery-' + (editingProduct?.id || 'new-product')}
+                                        value={formData.gallery_images}
+                                        onChange={(urls) => setFormData((current) => ({ ...current, gallery_images: urls }))}
+                                        onBusyChange={setInstallationEditorBusy}
+                                    />
+                                </fieldset>
+                            )}
 
                             {/* 노출 섹션 */}
                             {isBasicProductEditor && (
@@ -1115,7 +1121,11 @@ export const ProductManager = () => {
                                     <PackageInstallationEditor
                                         key={editingProduct?.id || 'new-package'}
                                         value={formData.installation_scenes}
-                                        onChange={(scenes) => setFormData((current) => ({ ...current, installation_scenes: scenes }))}
+                                        onChange={(scenes) => setFormData((current) => {
+                                            // 상품을 새로 태그하면 기본 구성품에 추가하고, 마지막 태그를 지우면 구성품에서도 뺀다(나머지 항목과 수량은 유지).
+                                            const basic_components = applyTagChangesToComponents(current.basic_components, current.installation_scenes, scenes, products);
+                                            return { ...current, installation_scenes: scenes, basic_components };
+                                        })}
                                         products={products}
                                         representativeImageUrl={formData.image_url}
                                         onBusyChange={setInstallationEditorBusy}
@@ -1291,7 +1301,7 @@ export const ProductManager = () => {
                                         <div className="flex justify-between items-center mb-4">
                                             <span className="font-bold text-slate-800 underline decoration-blue-200 underline-offset-4">기본 필수 구성품 (가격 포함)</span>
                                             <div className="flex gap-2">
-                                                <button type="button" onClick={importComponentsFromScenes} className="text-xs bg-teal-50 text-teal-800 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition-all font-bold">사진 태그로 덮어쓰기</button>
+                                                <button type="button" onClick={overwriteComponentsFromScenes} className="text-xs bg-teal-50 text-teal-800 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition-all font-bold">사진 태그로 덮어쓰기</button>
                                                 <button type="button" onClick={() => setFormData({ ...formData, basic_components: [...formData.basic_components, { name: '', quantity: 1 }] })} className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-all font-bold">+ 항목 추가</button>
                                             </div>
                                         </div>

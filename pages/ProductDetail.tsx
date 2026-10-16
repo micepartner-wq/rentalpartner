@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Container } from "../components/ui/Container";
 import { ProductDetailHero } from "../components/products/ProductDetailHero";
-import { PackageDetailHeader, PackageSpaceShowcase, PackageCompositionOverview, PackageServiceGuide, PackageOriginalDetails, PackageCombinationControls } from "../components/products/PackageDetailSections";
+import { ZoomableHtml } from "../components/products/ZoomableHtml";
+import { PackageDetailHeader, PackageSpaceShowcase, PackageServiceGuide, PackageOriginalDetails, PackageCombinationControls } from "../components/products/PackageDetailSections";
 import "../components/products/PackageDetail.css";
 import { ProductInstallationCases } from "../components/products/ProductInstallationCases";
 import { normalizeInstallationCases } from "../src/utils/installationCases";
@@ -19,9 +20,7 @@ import {
   ShoppingCart,
   Check,
   CheckCircle,
-  XCircle,
   X,
-  RotateCcw,
   FileText,
 } from "lucide-react";
 import {
@@ -36,7 +35,7 @@ import {
 } from "../src/api/productApi";
 import { getAllNavMenuItems, NavMenuItem } from "../src/api/cmsApi";
 import { usePriceDisplay } from "../src/context/PriceDisplayContext";
-import { addQuoteCartItem, getQuoteCartCount } from "../src/utils/quoteCart";
+import { addQuoteCartItem } from "../src/utils/quoteCart";
 import type { ProductPriceDisplayMode } from "../src/api/siteSettingsApi";
 import { Helmet } from "react-helmet-async";
 import {
@@ -44,7 +43,6 @@ import {
   buildProductJsonLd,
   buildSeoDescription,
   SITE_URL,
-  stripHtmlTags,
   toAbsoluteUrl,
   toJsonLd,
 } from "../src/utils/seo";
@@ -150,7 +148,6 @@ const SelectedOptionsSection = ({
   </div>
 );
 
-const getQuantityUnit = (type?: string) => "개";
 
 const getProductOptionSelectionMode = (
   groups: ProductOptionGroup[] = [],
@@ -706,7 +703,7 @@ export const ProductDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
   const [activeTab, setActiveTab] = useState("detail");
-  const [expectedPeople, setExpectedPeople] = useState<number | string>(1);
+  const [expectedPeople] = useState<number | string>(1);
   const [activeOptionTab, setActiveOptionTab] = useState<OptionTabId>("additional");
   const [bookingModal, setBookingModal] = useState<{
     show: boolean;
@@ -720,7 +717,6 @@ export const ProductDetailPage: React.FC = () => {
     action: 'booking' | 'cart' | null;
   }>({ show: false, action: null });
   const [mobileBarExpanded, setMobileBarExpanded] = useState(false);
-  const [quoteCartCount, setQuoteCartCount] = useState(0);
   const [basicComponentsExpanded, setBasicComponentsExpanded] = useState(true);
   
   useEffect(() => {
@@ -744,16 +740,11 @@ export const ProductDetailPage: React.FC = () => {
     fetchComponentProducts();
   }, []);
 
-  useEffect(() => {
-    setQuoteCartCount(getQuoteCartCount());
-  }, []);
-
   const [menuItems, setMenuItems] = useState<NavMenuItem[]>([]);
   const [selectedCooperative, setSelectedCooperative] = useState<{ [key: string]: number }>({});
-  const [selectedAdditional, setSelectedAdditional] = useState<{ [key: string]: number }>({});
+  const [selectedAdditional] = useState<{ [key: string]: number }>({});
   const [productOptionQuantities, setProductOptionQuantities] = useState<Record<string, number>>({});
   const [productOptionSelections, setProductOptionSelections] = useState<Record<string, string>>({});
-  const [productOptionSetQuantity, setProductOptionSetQuantity] = useState(1);
   const [combinationSets, setCombinationSets] = useState<Array<{ id: string; selections: Record<string, string>; quantity: number; price: number }>>([]);
   const [combinationQuantityDrafts, setCombinationQuantityDrafts] = useState<Record<string, string>>({});
   const [basicComponentQuantities, setBasicComponentQuantities] = useState<Record<string, number>>({});
@@ -1003,9 +994,6 @@ export const ProductDetailPage: React.FC = () => {
     });
   };
 
-  const handleRemoveCombination = (id: string) => {
-    setCombinationSets((prev) => prev.filter((s) => s.id !== id));
-  };
 
   const openActionConfirm = (action: 'booking' | 'cart') => {
     if (!product || !id || product.stock === 0) return;
@@ -1032,7 +1020,6 @@ export const ProductDetailPage: React.FC = () => {
     if (!product || !id) return;
     if (!validateProductOptionSelection()) return;
     addQuoteCartItem({ product_id: id, product_name: product.name, product_image_url: product.image_url, product_catalog_type: product.catalog_type || "general", expected_people: isCombinationOptionMode ? requestedQuantity : isPackageProduct ? 0 : typeof expectedPeople === "string" ? parseInt(expectedPeople || "0", 10) || 0 : expectedPeople, product_quantity: requestedQuantity, selected: true, option_quantity_managed: hasProductOptions && !isCombinationOptionMode, option_selection_mode: hasProductOptions ? productOptionSelectionMode : undefined, total_price: totalPrice, selected_options: buildSelectedOptions(), basic_components: buildBasicComponents() });
-    setQuoteCartCount(getQuoteCartCount());
     logAnalyticsEvent("quote_cart_add", { source: "product_detail", product_id: id, product_name: product.name, value: totalPrice });
     if (showSuccessModal) setBookingModal({ show: true, message: "장바구니에 담겼습니다.\n추가 옵션 및 수량 확인 후 견적을 요청할 수 있습니다.", type: "success", variant: "cart" });
   };
@@ -1230,15 +1217,14 @@ export const ProductDetailPage: React.FC = () => {
 
               {isPackageProduct ? (
                 <>
-                  <PackageCompositionOverview product={product} componentProducts={componentProducts} quantities={basicComponentQuantities} onCustomize={openPackageCustomization} />
-                  <details id="package-customize" className="pkd-customize">
-                    <summary><div><span className="pkd-eyebrow">MAKE IT YOURS</span><h2>우리 공간에 맞게 구성 변경</h2></div><Plus size={22} aria-hidden="true" /></summary>
+                  <section id="package-customize" className="pkd-customize">
+                    <div className="pkd-customize-head"><span className="pkd-eyebrow">WHAT'S INCLUDED</span><h2>패키지 구성과 수량</h2></div>
                     <div className="pkd-customize-content">
                       <p className="pkd-customize-note">필요 없는 상품은 제외하시고, 필요한 장비가 없는 경우에는 견적 요청 단계의 ‘추가 요청사항’에 적어 주시거나 다른 기타 상품을 장바구니에 담으신 후 견적을 받아 주시면 감사하겠습니다.</p>
                       {configurationControls}
                       {!(product.basic_components?.length || hasProductOptions || globalCooperative.length) && <p className="pkd-customize-note">원하시는 구성은 견적 요청 단계에서 담당자에게 전달해 주세요.</p>}
                     </div>
-                  </details>
+                  </section>
                   <PackageServiceGuide />
                   <PackageOriginalDetails description={product.description} />
                 </>
@@ -1263,7 +1249,7 @@ export const ProductDetailPage: React.FC = () => {
                         <p className="mt-2 text-sm leading-relaxed text-slate-500">상세 사양과 대여 진행 방법을 확인할 수 있습니다.</p>
                       </div>
                       {product.id && <ProductInstallationCases productId={product.id} productName={product.name} cases={product.installation_cases} />}
-                      {product.description ? <div className="prose prose-slate max-w-none w-full leading-relaxed [&>p]:m-0 [&>img]:m-0 [&>img]:w-full [&>img]:rounded-xl" dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, "<br/>") }} /> : normalizeInstallationCases(product.installation_cases).length > 0 ? null : <div className="flex flex-col items-center justify-center space-y-3 rounded-2xl bg-slate-50 py-20 text-slate-500"><Package size={40} className="text-slate-300" /><p className="font-medium">상세정보를 준비중입니다.</p></div>}
+                      {product.description ? <ZoomableHtml className="prose prose-slate max-w-none w-full leading-relaxed [&>p]:m-0 [&>img]:m-0 [&>img]:w-full [&>img]:rounded-xl" html={product.description.replace(/\n/g, "<br/>")} /> : normalizeInstallationCases(product.installation_cases).length > 0 ? null : <div className="flex flex-col items-center justify-center space-y-3 rounded-2xl bg-slate-50 py-20 text-slate-500"><Package size={40} className="text-slate-300" /><p className="font-medium">상세정보를 준비중입니다.</p></div>}
                     </div>
                   )}
                   {activeTab === "guide" && (

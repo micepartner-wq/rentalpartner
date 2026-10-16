@@ -10,24 +10,21 @@
 .pig-scene-image{display:block;width:100%;height:auto}
 .pig-photo-error{padding:60px 24px;text-align:center;color:#5e6c77;font-size:14px}
 .pig-hotspot{position:absolute;z-index:1;width:44px;height:44px;border:0;padding:7px;transform:translate(-50%,-50%);display:grid;place-items:center;background:transparent;cursor:pointer}
-.pig-hotspot>span{display:grid;place-items:center;width:30px;height:30px;background:#087f8c;color:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 12px #09263d44;font-size:0;line-height:0;position:relative;transition:background .15s,transform .15s}
-.pig-hotspot>span::before,.pig-hotspot>span::after{content:"";position:absolute;left:50%;top:50%;background:#fff;border-radius:1px;transform:translate(-50%,-50%);transition:opacity .15s}
-.pig-hotspot>span::before{width:12px;height:2px}
-.pig-hotspot>span::after{width:2px;height:12px}
-.pig-hotspot.is-selected>span::after{opacity:0}
-.pig-hotspot:hover>span,.pig-hotspot.is-selected>span{background:#09263d;transform:scale(1.13)}
+.pig-hotspot>span{display:grid;place-items:center;width:32px;height:32px;background:#087f8c;color:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 12px #09263d44;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s;pointer-events:none}
+/* 평소에는 표시를 숨기고, 마우스를 올리거나 키보드로 이동하면 손 모양 아이콘이 나타난다(커서도 손 모양). */
+.pig-hotspot:hover>span,.pig-hotspot:focus-visible>span{opacity:1;transform:scale(1)}
+/* 마우스가 없는 터치 화면에서는 올릴 수가 없으므로 작게 항상 보여 준다. */
+@media(hover:none){.pig-hotspot>span{opacity:.9;transform:scale(.85)}}
+/* 상품 안내가 열려 있는 동안 눌린 상품 표시는 숨긴다(안내 상자가 그 자리를 대신함). 사진을 누르거나 X로 닫으면 다시 나타난다. */
+.pig-hotspot.is-selected{opacity:0;pointer-events:none}
 .pig-detail{position:absolute;z-index:2;left:clamp(12px,calc(var(--pig-x) - 150px),calc(100% - 312px));top:clamp(12px,calc(var(--pig-y) + 25px),calc(100% - 156px));width:300px;height:144px;max-height:calc(100% - 24px);overflow:auto;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:18px 30px 18px 14px;background:#fff;border:1px solid #e6ecec;border-radius:12px;box-shadow:0 12px 35px #09263d26}
 .pig-close{position:absolute;top:0;right:0;width:36px;height:36px;display:grid;place-items:center;border:0;background:transparent;color:#62737c;font-size:23px;cursor:pointer}
 .pig-product-image{display:block;flex:0 0 auto;width:70px;height:70px;object-fit:contain;background:#f3f5f5;border-radius:7px}
 .pig-image-placeholder{display:grid;place-items:center;font-size:12px;color:#65757b}
-.pig-detail-copy,.pig-product-copy{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
-.pig-detail-copy strong,.pig-product-copy strong{font-size:14px;font-weight:650;line-height:1.45;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pig-detail-copy{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
+.pig-detail-copy strong{font-size:14px;font-weight:650;line-height:1.45;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pig-detail-copy a{font-size:12px;color:#067a83;font-weight:700;text-decoration:none;padding:3px 0}
 .pig-unavailable{font-size:11px;line-height:1.5;color:#647580}
-.pig-badge{display:inline-block;padding:3px 7px;border-radius:4px;font-size:10px;font-weight:700;line-height:1.5;white-space:nowrap}
-.pig-badge-included{color:#08666b;background:#e7f4f1}
-.pig-badge-optional{color:#72521b;background:#faf0dd}
-.pig-badge-reference{color:#566571;background:#edf0f3}
 .pig-caption{display:flex;justify-content:space-between;gap:20px;align-items:baseline;padding:12px 2px;color:#6a7882;font-size:12px}
 .pig-caption p{margin:0;white-space:pre-wrap}.pig-caption>span{white-space:nowrap;font-variant-numeric:tabular-nums}
 .pig-thumbnails{display:flex;gap:10px;overflow-x:auto;padding:4px 4px 12px;margin:0 -4px}
@@ -36,16 +33,6 @@
 .pig-thumbnails img{width:100%;height:100%;object-fit:cover;opacity:.75}
 .pig-thumbnails button[aria-current=true] img{opacity:1}
 .pig-thumbnails span{position:absolute;left:5px;bottom:4px;font-size:10px;color:#fff;background:#09263dbb;padding:0 4px;border-radius:2px}
-.pig-list-heading{margin:22px 0 14px}
-.pig-list-heading h3{margin:0;font-size:16px;font-weight:700;letter-spacing:-.02em}
-.pig-list-heading h3 span{color:#087f8c;font-size:13px;margin-left:5px}
-.pig-list-heading p{margin:7px 0 0;font-size:12px;color:#677980;line-height:1.6}
-.pig-products{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.pig-products li{min-width:0;background:#fff;border:1px solid #e3e9e9;border-radius:12px;overflow:hidden}
-.pig-products li.is-selected{border-color:#087f8c;background:#f5fbfa}
-.pig-product-select{display:flex;align-items:center;gap:12px;text-align:left;width:100%;border:0;background:transparent;padding:14px;cursor:pointer;color:inherit}
-.pig-location{font-size:10px;color:#697b83}
-.pig-product-link{display:block;width:fit-content;margin:0 14px 12px auto;padding:4px 0;font-size:12px;font-weight:650;color:#08717d;text-decoration:none}
 .pig-status{font-size:13px;line-height:1.6;color:#65757c;margin:12px 0}
 .pig-status button{margin-left:8px;background:#e7f4f1;color:#08666b;border:0;border-radius:6px;padding:8px 12px;font-weight:650;cursor:pointer}
 @media(max-width:640px){
@@ -57,13 +44,7 @@
 .pig-detail{position:relative;left:auto;top:auto;width:100%;height:auto;min-height:116px;max-height:none;margin-top:10px;padding:16px 38px 16px 14px;box-shadow:none;border-color:#cfe3e2}
 .pig-detail-copy strong{-webkit-line-clamp:3}
 .pig-close{width:44px;height:44px}
-.pig-products{grid-template-columns:1fr}
 .pig-product-image{width:64px;height:64px}
-.pig-list-heading p{font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){.pig-hotspot>span{transition:none}}
 
-.pig-product-disclosure{margin-top:14px;border-top:1px solid #e3e9e9;padding-top:6px}
-.pig-product-disclosure>summary{padding:12px 0;cursor:pointer;font-size:13px;font-weight:650;color:#09263d}
-.pig-product-disclosure>summary span{font-size:11px;font-weight:400;color:#647580;margin-left:8px}
-.pig-product-disclosure>summary:focus-visible{outline:3px solid #0c8791;outline-offset:3px}

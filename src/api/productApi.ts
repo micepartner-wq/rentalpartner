@@ -3,6 +3,7 @@ import { getInstallationScenesValidationError, isMissingInstallationScenesError,
 import type { InstallationScene } from '../utils/installationScenes';
 import { getInstallationCasesValidationError, isMissingInstallationCasesError, normalizeInstallationCases } from '../utils/installationCases';
 import type { InstallationCase } from '../utils/installationCases';
+import { getGalleryImagesValidationError, isMissingGalleryImagesError, normalizeGalleryImages } from '../utils/productGallery';
 
 export type ProductCatalogType = 'general' | 'package';
 
@@ -30,6 +31,8 @@ export interface Product {
     image_url?: string;
     installation_scenes?: InstallationScene[];
     installation_cases?: InstallationCase[];
+    /** 대표 이미지(image_url) 뒤에 슬라이드로 이어지는 추가 이미지 URL 목록. */
+    gallery_images?: string[];
     stock: number;
     discount_rate?: number;
     created_at?: string;
@@ -269,6 +272,14 @@ const validateCaseWrite = (value: InstallationCase[] | undefined) => {
     if (error) throw new Error(error);
 };
 
+const validateGalleryWrite = (value: string[] | undefined) => {
+    if (value === undefined) return;
+    const error = getGalleryImagesValidationError(value);
+    if (error) throw new Error(error);
+};
+
+const GALLERY_SCHEMA_MESSAGE = '추가 대표 이미지 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_product_gallery_images.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
+
 const INSTALLATION_CASES_SCHEMA_MESSAGE = '상세 상단 이미지 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_product_installation_cases.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
 
 const INSTALLATION_SCHEMA_MESSAGE = '설치사진 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_product_installation_scenes.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
@@ -294,6 +305,8 @@ export const addProduct = async (product: Omit<Product, 'id' | 'created_at'>): P
     if (userData.installation_scenes !== undefined) userData.installation_scenes = normalizeInstallationScenes(userData.installation_scenes);
     validateCaseWrite(userData.installation_cases);
     if (userData.installation_cases !== undefined) userData.installation_cases = normalizeInstallationCases(userData.installation_cases);
+    validateGalleryWrite(userData.gallery_images);
+    if (userData.gallery_images !== undefined) userData.gallery_images = normalizeGalleryImages(userData.gallery_images);
 
     // ???ㅺ강? ?類???????筌???獄쏅똻???棺??짆?먰맪???癰귙끋源?
     // if (!userData.product_code) ...
@@ -309,6 +322,12 @@ export const addProduct = async (product: Omit<Product, 'id' | 'created_at'>): P
         if (error) throw error;
         return data;
     } catch (error) {
+        if (isMissingGalleryImagesError(error) && userData.gallery_images !== undefined) {
+            if (userData.gallery_images.length > 0) throw new Error(GALLERY_SCHEMA_MESSAGE);
+            // Older databases can still save products that have no extra images.
+            const { gallery_images, ...legacyProduct } = userData;
+            return addProduct(legacyProduct);
+        }
         if (isMissingInstallationCasesError(error) && userData.installation_cases !== undefined) {
             if (userData.installation_cases.length > 0) throw new Error(INSTALLATION_CASES_SCHEMA_MESSAGE);
             // Older databases can still save products that have no installation case photos.
@@ -350,6 +369,8 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
     if (updates.installation_scenes !== undefined) updates.installation_scenes = normalizeInstallationScenes(updates.installation_scenes);
     validateCaseWrite(updates.installation_cases);
     if (updates.installation_cases !== undefined) updates.installation_cases = normalizeInstallationCases(updates.installation_cases);
+    validateGalleryWrite(updates.gallery_images);
+    if (updates.gallery_images !== undefined) updates.gallery_images = normalizeGalleryImages(updates.gallery_images);
     try {
         const { data, error } = await supabase
             .from('products')
@@ -361,6 +382,11 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
         if (error) throw error;
         return data;
     } catch (error) {
+        if (isMissingGalleryImagesError(error) && updates.gallery_images !== undefined) {
+            if (updates.gallery_images.length > 0) throw new Error(GALLERY_SCHEMA_MESSAGE);
+            const { gallery_images, ...legacyUpdates } = updates;
+            return updateProduct(id, legacyUpdates);
+        }
         if (isMissingInstallationCasesError(error) && updates.installation_cases !== undefined) {
             if (updates.installation_cases.length > 0) throw new Error(INSTALLATION_CASES_SCHEMA_MESSAGE);
             const { installation_cases, ...legacyUpdates } = updates;

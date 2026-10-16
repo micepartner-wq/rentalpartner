@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Product } from '../../src/api/productApi';
 import { uploadImage } from '../../src/api/storageApi';
-import { isSafeSceneImageUrl, MAX_INSTALLATION_SCENES, MAX_INSTALLATION_HOTSPOTS, INSTALLATION_INCLUSION_LABELS, type InstallationScene, type InstallationHotspot } from '../../src/utils/installationScenes';
+import { isSafeSceneImageUrl, MAX_INSTALLATION_SCENES, MAX_INSTALLATION_HOTSPOTS, type InstallationScene, type InstallationHotspot } from '../../src/utils/installationScenes';
 import './PackageInstallationEditor.css';
 
 interface Props {
@@ -15,7 +15,6 @@ type Point = { x: number; y: number };
 const MAX_SCENES = MAX_INSTALLATION_SCENES;
 const MAX_TAGS = MAX_INSTALLATION_HOTSPOTS;
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n * 100) / 100));
-const labels = INSTALLATION_INCLUSION_LABELS;
 // LAN HTTP origins lack randomUUID, but getRandomValues remains available.
 const createId = (): string => {
     if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -94,10 +93,10 @@ export default function PackageInstallationEditor({ value, onChange, products, o
         if (!scene || !product.id) return;
         if (tag) updateTag({ product_id: product.id });
         else if (draft && scene.hotspots.length < MAX_TAGS) {
-            const next: InstallationHotspot = { id: createId(), product_id: product.id, ...draft, inclusion: 'reference' };
+            const next: InstallationHotspot = { id: createId(), product_id: product.id, ...draft };
             updateScene({ ...scene, hotspots: [...scene.hotspots, next] }); setTagId(next.id); setDraft(null);
         }
-        setQuery(''); setMessage('상품을 연결했습니다. 패키지 포함 여부를 확인해 주세요.');
+        setQuery(''); setMessage('상품을 연결했습니다. 패키지 구성품에도 자동으로 추가됩니다.');
     };
     const startDraft = (point: Point) => {
         if (!scene || scene.hotspots.length >= MAX_TAGS) { setMessage('사진 한 장에 상품 태그를 최대 30개까지 등록할 수 있습니다.'); return; }
@@ -137,13 +136,13 @@ export default function PackageInstallationEditor({ value, onChange, products, o
                     </div>
                     {failedImage === scene.id ? <p role="alert">사진을 불러오지 못했습니다. 주소를 확인하고 사진을 다시 등록해 주세요.</p> : <p className="pse-hint">사진 속 상품을 클릭하거나 아래 버튼으로 태그 위치를 지정하세요.</p>}
                     <button type="button" disabled={failedImage === scene.id || scene.hotspots.length >= MAX_TAGS} onClick={() => startDraft({ x: 50, y: 50 })}>중앙에 상품 태그 추가</button>
-                    <div className="pse-tag-list">{scene.hotspots.map((item, index) => <button key={item.id} type="button" aria-pressed={tag?.id === item.id} onClick={() => { setTagId(item.id); setDraft(null); setQuery(''); }}><span>{index + 1}. {eligible.find(product => product.id === item.product_id)?.name || '연결 상품 확인 필요'}</span><small>{labels[item.inclusion]}</small></button>)}</div>
+                    <div className="pse-tag-list">{scene.hotspots.map((item, index) => <button key={item.id} type="button" aria-pressed={tag?.id === item.id} onClick={() => { setTagId(item.id); setDraft(null); setQuery(''); }}><span>{index + 1}. {eligible.find(product => product.id === item.product_id)?.name || '연결 상품 확인 필요'}</span></button>)}</div>
                 </div>
                 <div className="pse-panel">
                     {point ? <>
                         <h4>{tag ? '상품 태그 편집' : '새 상품 연결'}</h4>
                         {tag && <><p className="pse-linked">{linked?.name || '연결 상품이 삭제되었거나 목록에 없습니다. 다른 상품을 선택하거나 태그를 삭제해 주세요.'}</p>
-                        <label>패키지 포함 여부<select value={tag.inclusion} onChange={e => updateTag({ inclusion: e.target.value as InstallationHotspot['inclusion'] })}><option value="reference">{labels.reference}</option><option value="included">기본 포함</option><option value="optional">추가 선택</option></select></label><small>실제 구성과 일치하는지 확인해 주세요. 새 태그는 참고 상품으로 등록됩니다.</small></>}
+                        <small>태그한 상품은 패키지 구성품에 자동으로 들어갑니다(고객 화면에서는 이 위치에 마우스를 올리면 손 모양 아이콘이 나타납니다). 구성에서 빼려면 이 태그를 삭제하세요.</small></>}
                         <div className="pse-coordinates">{(['x', 'y'] as const).map(axis => <label key={axis}>{axis === 'x' ? '가로 위치 (%)' : '세로 위치 (%)'}<input type="number" min={0} max={100} step={0.1} value={point[axis]} onChange={e => {
                             const n = e.target.valueAsNumber; if (!Number.isFinite(n)) return;
                             if (tag) updateTag({ [axis]: clamp(n) }); else setDraft({ ...point, [axis]: clamp(n) });
