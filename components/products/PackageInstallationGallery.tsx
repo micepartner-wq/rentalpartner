@@ -1,6 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Hand } from 'lucide-react';
 import { getProductsByIds, type Product } from '../../src/api/productApi';
 import { isSafeSceneImageUrl, type InstallationScene, type InstallationHotspot } from '../../src/utils/installationScenes';
 import './PackageInstallationGallery.css';
@@ -69,23 +68,23 @@ export function PackageInstallationGallery({ scenes }: { scenes: InstallationSce
   }}>
     <header className="pig-heading">
       <div><span className="pig-eyebrow">IN THE SPACE</span><h2 id={uid + '-heading'}>공간 속 렌탈 상품</h2></div>
-      <p>사진 속 상품을 눌러 사용된 상품을 확인하세요.</p>
+      <p>사진 속 + 버튼을 눌러 사용된 상품을 확인하세요.</p>
     </header>
     <div className="pig-stage">
       <div className="pig-photo" onClick={event => {
-        // 사진의 빈 곳을 누르면 상품 안내를 닫는다(상품 버튼 클릭은 각자 동작하므로 제외).
+        // 사진의 빈 곳을 누르면 상품 안내를 닫는다(+ 버튼 클릭은 각자 동작하므로 제외).
         if (selectedId && !(event.target as Element).closest('.pig-hotspot')) setSelectedId(null);
       }}>
         {!imageFailed ? <img key={scene.image_url} className="pig-scene-image" src={scene.image_url}
           alt={scene.caption || '간편패키지 설치 모습'} onLoad={() => { setLoadedImageUrl(scene.image_url); setFailedImageUrl(''); }}
           onError={() => { setFailedImageUrl(scene.image_url); setLoadedImageUrl(''); }} />
-          : <div className="pig-photo-error" role="status">설치사진을 불러오지 못했습니다.</div>}
+          : <div className="pig-photo-error" role="status">설치사진을 불러오지 못했습니다. 아래 상품 목록에서 확인해 주세요.</div>}
         {imageReady && scene.hotspots.map((hotspot, index) => <button
           key={hotspot.id} type="button" className={'pig-hotspot' + (selectedId === hotspot.id ? ' is-selected' : '')}
           style={{ left: `clamp(22px, ${hotspot.x}%, calc(100% - 22px))`, top: `clamp(22px, ${hotspot.y}%, calc(100% - 22px))` }}
           aria-label={`${index + 1}. ${productName(hotspot)} 안내`} aria-expanded={selectedId === hotspot.id}
           aria-controls={selectedId === hotspot.id ? uid + '-detail' : undefined}
-          onClick={event => selectHotspot(hotspot, event.currentTarget)}><span aria-hidden="true"><Hand size={16} strokeWidth={2.2} /></span></button>)}
+          onClick={event => selectHotspot(hotspot, event.currentTarget)}><span aria-hidden="true">{selectedId === hotspot.id ? '−' : '+'}</span></button>)}
       </div>
       {selected && <div id={uid + '-detail'} className="pig-detail" role="region" aria-label="선택한 상품 안내"
         style={{ '--pig-x': `${selected.x}%`, '--pig-y': `${selected.y}%` } as React.CSSProperties}>
@@ -105,7 +104,21 @@ export function PackageInstallationGallery({ scenes }: { scenes: InstallationSce
         <img src={item.image_url} alt="" loading="lazy" /><span>{String(index + 1).padStart(2, '0')}</span>
       </button>)}
     </nav>}
+    <details className="pig-product-disclosure"><summary>사진 속 렌탈 상품 <span>{scene.hotspots.length}개 안내</span></summary>    <div className="pig-list-heading"><h3>사진 속 렌탈 상품 <span>{scene.hotspots.length}</span></h3>
+      <p>사진에 표시된 상품이 패키지 구성입니다.</p></div>
+    {status === 'loading' && <p className="pig-status" role="status">상품 정보를 불러오고 있습니다.</p>}
     {status === 'error' && <div className="pig-status" role="status">상품 정보를 불러오지 못했습니다. <button type="button" onClick={() => setRetry(value => value + 1)}>다시 시도</button></div>}
+    {scene.hotspots.length ? <ul className="pig-products">
+      {scene.hotspots.map((hotspot, index) => <li key={hotspot.id} className={selectedId === hotspot.id ? 'is-selected' : ''}>
+        <button type="button" className="pig-product-select" onClick={event => selectHotspot(hotspot, event.currentTarget)}
+          aria-expanded={selectedId === hotspot.id} aria-controls={selectedId === hotspot.id ? uid + '-detail' : undefined}>
+          <ProductImage product={products[hotspot.product_id]} />
+          <span className="pig-product-copy">
+            <strong>{productName(hotspot)}</strong><span className="pig-location">{String(index + 1).padStart(2, '0')} · 사진 속 위치 보기</span></span>
+        </button>
+        {products[hotspot.product_id]?.id && <Link className="pig-product-link" to={`/products/${encodeURIComponent(hotspot.product_id)}`} aria-label={`${productName(hotspot)} 상품 보기`}>상품 보기 <span aria-hidden="true">↗</span></Link>}
+      </li>)}
+    </ul> : <p className="pig-status">이 사진에 등록된 상품 안내가 없습니다.</p>}</details>
   </section>;
 }
 export default PackageInstallationGallery;

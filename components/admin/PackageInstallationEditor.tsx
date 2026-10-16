@@ -142,7 +142,7 @@ export default function PackageInstallationEditor({ value, onChange, products, o
                     {point ? <>
                         <h4>{tag ? '상품 태그 편집' : '새 상품 연결'}</h4>
                         {tag && <><p className="pse-linked">{linked?.name || '연결 상품이 삭제되었거나 목록에 없습니다. 다른 상품을 선택하거나 태그를 삭제해 주세요.'}</p>
-                        <small>태그한 상품은 패키지 구성품에 자동으로 들어갑니다(고객 화면에서는 이 위치에 마우스를 올리면 손 모양 아이콘이 나타납니다). 구성에서 빼려면 이 태그를 삭제하세요.</small></>}
+                        <small>태그한 상품은 패키지 구성품에 자동으로 들어갑니다. 구성에서 빼려면 이 태그를 삭제하세요.</small></>}
                         <div className="pse-coordinates">{(['x', 'y'] as const).map(axis => <label key={axis}>{axis === 'x' ? '가로 위치 (%)' : '세로 위치 (%)'}<input type="number" min={0} max={100} step={0.1} value={point[axis]} onChange={e => {
                             const n = e.target.valueAsNumber; if (!Number.isFinite(n)) return;
                             if (tag) updateTag({ [axis]: clamp(n) }); else setDraft({ ...point, [axis]: clamp(n) });
