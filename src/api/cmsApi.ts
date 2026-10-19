@@ -1,5 +1,6 @@
 
 import { supabase } from '../lib/supabase';
+import { getReviewPhotosValidationError, isMissingReviewImagesError, normalizeReviewPhotos, type ReviewPhoto } from '../utils/reviewPhotos';
 
 // ==================== Quick Menu Items ====================
 export interface QuickMenuItem {
@@ -422,6 +423,8 @@ export interface BoardPost {
     content?: string;
     image_url?: string;
     mobile_image_url?: string;
+    /** 설치후기 사진 + 상품 태그(최대 10장). 대표 이미지(image_url)는 첫 번째 사진을 쓴다. */
+    images?: ReviewPhoto[];
     link?: string;
     display_order: number;
     is_active: boolean;
@@ -473,29 +476,61 @@ export const getBoardPostById = async (id: string): Promise<BoardPost | null> =>
     return data || null;
 };
 
+const REVIEW_IMAGES_SCHEMA_MESSAGE = '설치후기 사진/상품 태그 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_mice_tab_posts_images.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
+
+const prepareImagesWrite = (images: ReviewPhoto[] | undefined): ReviewPhoto[] | undefined => {
+    if (images === undefined) return undefined;
+    const error = getReviewPhotosValidationError(images);
+    if (error) throw new Error(error);
+    return normalizeReviewPhotos(images);
+};
+
 export const addBoardPost = async (post: Omit<BoardPost, 'id' | 'created_at' | 'updated_at'>): Promise<BoardPost> => {
+    const payload = { ...post };
+    const images = prepareImagesWrite(payload.images);
+    if (images !== undefined) payload.images = images;
+
     const { data, error } = await supabase
         .from(BOARD_POSTS_TABLE)
-        .insert([post])
+        .insert([payload])
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        if (isMissingReviewImagesError(error) && payload.images !== undefined) {
+            if (payload.images.length > 0) throw new Error(REVIEW_IMAGES_SCHEMA_MESSAGE);
+            // 컬럼이 없는 DB에서도 사진 없는 글은 계속 저장된다.
+            const { images: _images, ...legacy } = payload;
+            return addBoardPost(legacy);
+        }
+        throw error;
+    }
     return data;
 };
 
 export const updateBoardPost = async (id: string, updates: Partial<BoardPost>): Promise<BoardPost> => {
+    const payload = { ...updates };
+    const images = prepareImagesWrite(payload.images);
+    if (images !== undefined) payload.images = images;
+
     const { data, error } = await supabase
         .from(BOARD_POSTS_TABLE)
         .update({
-            ...updates,
+            ...payload,
             updated_at: new Date().toISOString()
         })
         .eq('id', id)
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        if (isMissingReviewImagesError(error) && payload.images !== undefined) {
+            if (payload.images.length > 0) throw new Error(REVIEW_IMAGES_SCHEMA_MESSAGE);
+            const { images: _images, ...legacy } = payload;
+            return updateBoardPost(id, legacy);
+        }
+        throw error;
+    }
     return data;
 };
 

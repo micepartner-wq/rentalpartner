@@ -6,6 +6,8 @@ import { Container } from '../components/ui/Container';
 import { BoardPost, BoardPostType, deleteBoardPost, getBoardPostById } from '../src/api/cmsApi';
 import { useAuth } from '../src/context/AuthContext';
 import { parseGnbContent, stripGnbContentImages } from '../src/utils/gnbContent';
+import { normalizeReviewPhotos } from '../src/utils/reviewPhotos';
+import { ReviewPhotoStack } from '../components/review/ReviewPhotoStack';
 import {
   buildArticleJsonLd,
   buildBreadcrumbJsonLd,
@@ -97,6 +99,9 @@ export const BoardPostDetailPage: React.FC<BoardPostDetailPageProps> = ({ boardT
   }, [meta.title, post]);
 
   const contentBlocks = useMemo(() => parseGnbContent(post?.content), [post?.content]);
+  // 새 방식 글: 사진(+ 상품 태그)은 images 에 따로 저장되고, 본문 글 → 태그한 상품 슬라이드 → 사진 순으로 보인다.
+  // 예전 글은 본문에 사진이 섞여 있어 지금처럼 그대로 보인다.
+  const photos = useMemo(() => normalizeReviewPhotos(post?.images), [post?.images]);
   const plainContent = useMemo(() => stripGnbContentImages(post?.content), [post?.content]);
   const canonicalUrl = `${SITE_URL}${meta.path}${id ? `/${id}` : ''}`;
   const seoDescription = buildSeoDescription(plainContent) || `${meta.title} 상세 페이지입니다.`;
@@ -141,6 +146,30 @@ export const BoardPostDetailPage: React.FC<BoardPostDetailPageProps> = ({ boardT
       setDeleting(false);
     }
   };
+
+  // 본문 글(새 방식 글은 사진 앞에, 예전 글은 사진이 섞인 본문 그대로).
+  const contentNode = post && contentBlocks.length > 0 ? (
+    <div className="max-w-full space-y-6">
+      {contentBlocks.map((block, index) => (
+        block.type === 'image' ? (
+          <div key={`${block.type}-${index}`} className="overflow-hidden border border-slate-100 bg-slate-50">
+            <img
+              src={block.value}
+              alt={`${post.title} 본문 이미지 ${index + 1}`}
+              className="h-auto w-full object-contain"
+            />
+          </div>
+        ) : (
+          <div
+            key={`${block.type}-${index}`}
+            className="break-words text-[16px] leading-8 text-slate-700 whitespace-pre-wrap [overflow-wrap:anywhere]"
+          >
+            {renderLinkedText(block.value)}
+          </div>
+        )
+      ))}
+    </div>
+  ) : null;
 
   return (
     <>
@@ -208,7 +237,9 @@ export const BoardPostDetailPage: React.FC<BoardPostDetailPageProps> = ({ boardT
                 </div>
               </header>
 
-              {(post.image_url || post.mobile_image_url) && (
+              {photos.length > 0 && <ReviewPhotoStack photos={photos} title={post.title} intro={contentNode} />}
+
+              {photos.length === 0 && (post.image_url || post.mobile_image_url) && (
                 <div className="mb-10 overflow-hidden border border-gray-100">
                   <picture className="block w-full">
                     {post.mobile_image_url && <source media="(max-width: 767px)" srcSet={post.mobile_image_url} />}
@@ -217,32 +248,11 @@ export const BoardPostDetailPage: React.FC<BoardPostDetailPageProps> = ({ boardT
                 </div>
               )}
 
-              {contentBlocks.length > 0 ? (
-                <div className="max-w-full space-y-6">
-                  {contentBlocks.map((block, index) => (
-                    block.type === 'image' ? (
-                      <div key={`${block.type}-${index}`} className="overflow-hidden border border-slate-100 bg-slate-50">
-                        <img
-                          src={block.value}
-                          alt={`${post.title} 본문 이미지 ${index + 1}`}
-                          className="h-auto w-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        key={`${block.type}-${index}`}
-                        className="break-words text-[16px] leading-8 text-slate-700 whitespace-pre-wrap [overflow-wrap:anywhere]"
-                      >
-                        {renderLinkedText(block.value)}
-                      </div>
-                    )
-                  ))}
-                </div>
-              ) : (
+              {photos.length === 0 && (contentNode ?? (
                 <div className="max-w-full break-words text-[16px] leading-8 text-slate-700 whitespace-pre-wrap [overflow-wrap:anywhere]">
                   등록된 상세 내용이 없습니다.
                 </div>
-              )}
+              ))}
 
               {post.link && (
                 <div className="mt-10 border-t border-gray-100 pt-6">

@@ -18,7 +18,8 @@ interface AuthContextType {
     refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
+/** 개발 확인용으로 내보낸다(화면 테스트에서 Provider 로 감싸 관리자 상태를 흉내 낼 수 있다). */
+export const AuthContext = createContext<AuthContextType>({
     user: null,
     userProfile: null,
     loading: true,
