@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle, FileText, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, CheckCircle, FileText, Loader2, Trash2 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Container } from "../components/ui/Container";
 import { useAuth } from "../src/context/AuthContext";
 import { createBooking } from "../src/api/bookingApi";
+import { getQuickQuoteProductId } from "../src/api/productApi";
 import { createNotification } from "../src/api/notificationApi";
 import { sendQuoteRequestNotificationEmail } from "../src/api/quoteEmailApi";
-import { QuoteCartItem, getQuoteCartItems, setQuoteCartItems } from "../src/utils/quoteCart";
+import { QuoteCartItem, getQuoteCartItems, removeQuoteCartItem, setQuoteCartItems } from "../src/utils/quoteCart";
 import { usePriceDisplay } from "../src/context/PriceDisplayContext";
 import { getPublicPriceClassName, getPublicPriceText, INQUIRY_PRICE_TEXT_CLASS } from "../src/utils/priceDisplay";
 import { buildBookingRequestNote } from "../src/utils/bookingRequestDetails";
@@ -58,7 +59,6 @@ const getOptionSummaryText = (item: QuoteCartItem) => {
 };
 
 export const QuoteRequestPage: React.FC = () => {
-  const navigate = useNavigate();
   const { user, userProfile } = useAuth();
   const { mode: priceDisplayMode, loading: priceDisplayLoading } = usePriceDisplay();
   const [items, setItems] = useState<QuoteCartItem[]>([]);
@@ -72,6 +72,8 @@ export const QuoteRequestPage: React.FC = () => {
   const [siteType, setSiteType] = useState<(typeof SITE_TYPE_OPTIONS)[number]>("사무실");
   const [elevatorType, setElevatorType] = useState<(typeof ELEVATOR_OPTIONS)[number]["value"]>("unknown");
   const [requestNote, setRequestNote] = useState("");
+  const [quickNeeds, setQuickNeeds] = useState("");
+  const [cartLoaded, setCartLoaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -81,6 +83,7 @@ export const QuoteRequestPage: React.FC = () => {
   useEffect(() => {
     const cartItems = getQuoteCartItems();
     setItems(cartItems.filter((item) => item.selected));
+    setCartLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -107,13 +110,21 @@ export const QuoteRequestPage: React.FC = () => {
     [items],
   );
 
+  // 요청 목록에서 상품을 삭제한다(장바구니에서도 삭제). 모두 삭제하면 빠른 견적 문의 화면으로 바뀐다.
+  const handleRemoveItem = (item: QuoteCartItem) => {
+    if (isSubmitting || !window.confirm(`"${item.product_name}" 상품을 삭제할까요?`)) return;
+    setItems(removeQuoteCartItem(item.cart_item_id).filter((cartItem) => cartItem.selected));
+  };
+
+  // 장바구니가 비어 있으면 상품을 고르지 않고 필요한 장비를 직접 적어 빠르게 견적을 요청하는 모드다.
+  const quickMode = items.length === 0;
+
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setHasAttemptedSubmit(true);
 
-    if (items.length === 0) {
-      alert("견적 요청할 상품을 선택해 주세요.");
-      navigate("/quote-cart");
+    if (quickMode && !quickNeeds.trim()) {
+      alert("필요한 장비와 수량을 입력해 주세요.");
       return;
     }
     if (
@@ -139,8 +150,9 @@ export const QuoteRequestPage: React.FC = () => {
         user?.uid || `guest:${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
       const elevatorLabel =
         ELEVATOR_OPTIONS.find((option) => option.value === elevatorType)?.label || elevatorType;
+      const quickProductId = quickMode ? await getQuickQuoteProductId() : null;
       const booking = await createBooking({
-        product_id: items[0].product_id,
+        product_id: quickMode ? quickProductId! : items[0].product_id,
         user_id: bookingUserId,
         user_email: customerEmail.trim(),
         start_date: startDate,
@@ -149,7 +161,15 @@ export const QuoteRequestPage: React.FC = () => {
         status: "pending",
         selected_options: [],
         basic_components: [],
-        quote_items: items.map((item) => ({
+        quote_items: quickMode ? [{
+          product_id: quickProductId!,
+          product_name: "빠른 견적 문의 (상품 미지정)",
+          product_quantity: 1,
+          unit_price: 0,
+          total_price: 0,
+          selected_options: [],
+          basic_components: [],
+        }] : items.map((item) => ({
           product_id: item.product_id,
           product_name: item.product_name,
           product_image_url: item.product_image_url,
@@ -172,7 +192,9 @@ export const QuoteRequestPage: React.FC = () => {
             siteType,
             elevatorLabel,
           },
-          extraRequest: requestNote,
+          extraRequest: quickMode
+            ? `[필요한 장비·수량]\n${quickNeeds.trim()}${requestNote.trim() ? `\n\n${requestNote.trim()}` : ""}`
+            : requestNote,
         }),
       });
 
@@ -188,14 +210,16 @@ export const QuoteRequestPage: React.FC = () => {
         await createNotification(
           user.uid,
           "견적 요청 완료",
-          `${items.length}개 상품의 견적 요청이 접수되었습니다.`,
+          quickMode ? "상품 미지정 빠른 견적 요청이 접수되었습니다." : `${items.length}개 상품의 견적 요청이 접수되었습니다.`,
           "info",
           "/mypage",
         );
       }
 
-      const requestedIds = new Set(items.map((item) => item.cart_item_id));
-      setQuoteCartItems(getQuoteCartItems().filter((item) => !requestedIds.has(item.cart_item_id)));
+      if (!quickMode) {
+        const requestedIds = new Set(items.map((item) => item.cart_item_id));
+        setQuoteCartItems(getQuoteCartItems().filter((item) => !requestedIds.has(item.cart_item_id)));
+      }
       setCompleted(true);
     } catch (error) {
       console.error("Failed to submit quote request", error);
@@ -204,6 +228,8 @@ export const QuoteRequestPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (!cartLoaded) return <div className="min-h-screen bg-slate-50" />;
 
   if (completed) {
     return (
@@ -248,23 +274,32 @@ export const QuoteRequestPage: React.FC = () => {
       <Container>
         <div className="mx-auto max-w-7xl">
           <div className="mb-6">
-            <Link to="/quote-cart" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-[#001E45]">
-              <ArrowLeft size={16} /> 장바구니로 돌아가기
+            <Link to={quickMode ? "/products" : "/quote-cart"} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-[#001E45]">
+              <ArrowLeft size={16} /> {quickMode ? "상품 둘러보기" : "장바구니로 돌아가기"}
             </Link>
             <h1 className="flex items-center gap-2 text-2xl font-semibold text-slate-900">
-              <FileText size={24} /> 견적 요청 정보 입력
+              <FileText size={24} /> {quickMode ? "빠른 견적 문의" : "견적 요청 정보 입력"}
             </h1>
+            {quickMode && <p className="mt-2 text-sm text-slate-500">상품을 고르지 않아도 괜찮아요. 필요한 장비와 수량을 적어 주시면 담당자가 확인해서 안내드립니다.</p>}
           </div>
 
-          {items.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-              <p className="mb-4 text-slate-500">선택된 장바구니 상품이 없습니다.</p>
-              <Link to="/quote-cart" className="inline-flex rounded-xl bg-[#001E45] px-5 py-2.5 text-sm font-semibold text-white">
-                장바구니로 이동
-              </Link>
-            </div>
-          ) : (
+          {(
             <div className="grid gap-10 lg:grid-cols-[1fr_480px]">
+              {quickMode ? (
+              <section className="h-fit rounded-2xl border border-slate-200 bg-white p-5">
+                <h2 className="mb-1 text-lg font-semibold text-slate-900">필요한 장비와 수량 <span className="text-red-500">*</span></h2>
+                <p className="mb-3 text-xs text-slate-500">종류, 수량, 사용 목적을 자유롭게 적어 주세요. 정확하지 않아도 됩니다.</p>
+                <textarea
+                  value={quickNeeds}
+                  onChange={(e) => setQuickNeeds(e.target.value)}
+                  rows={12}
+                  placeholder={"예)\n노트북 20대, 모니터 20대\n책상/의자 20세트, A3 복합기 1대\n3일간 행사장 설치, 철거 포함"}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm leading-6 ${getErrorClass(quickNeeds)}`}
+                />
+                {hasAttemptedSubmit && !quickNeeds.trim() && <p className="mt-1 text-xs text-red-500">필요한 장비와 수량을 입력해주세요.</p>}
+                <p className="mt-4 text-xs text-slate-500">상품을 직접 고르고 싶다면 <Link to="/products" className="font-semibold text-[#001E45] underline">상품 둘러보기</Link>에서 담아 견적을 요청할 수도 있어요.</p>
+              </section>
+              ) : (
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
                 <h2 className="mb-4 text-lg font-semibold text-slate-900">요청 상품</h2>
                 <div className="space-y-3">
@@ -300,11 +335,20 @@ export const QuoteRequestPage: React.FC = () => {
                         })}>
                           {getPublicPriceText({ amount: item.total_price, mode: priceDisplayMode, loading: priceDisplayLoading })}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item)}
+                          aria-label={`${item.product_name} 삭제`}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+                        >
+                          <Trash2 size={16} aria-hidden="true" />
+                        </button>
                       </div>
                     );
                   })}
                 </div>
               </section>
+              )}
 
               <aside className="rounded-2xl border border-slate-200 bg-white p-6 h-fit">
                 <h2 className="mb-4 text-lg font-semibold text-slate-900">상세 정보</h2>
@@ -368,6 +412,9 @@ export const QuoteRequestPage: React.FC = () => {
                     <textarea value={requestNote} onChange={(e) => setRequestNote(e.target.value)} rows={5} placeholder="반입 시간 제한, 주차 가능 여부, 희망 연락 시간 등을 입력해 주세요." className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                   </label>
                 </div>
+                {quickMode ? (
+                  <p className="mt-6 border-t border-slate-100 pt-4 text-sm text-slate-500">상품은 담당자가 확인 후 견적서로 안내해 드립니다.</p>
+                ) : (
                 <div className="mt-6 border-t border-slate-100 pt-4">
                   <div className="mb-2 flex items-center justify-between text-sm text-slate-500">
                     <span>상품 {items.length}종 / 총 수량 {totalQuantity}개</span>
@@ -382,12 +429,13 @@ export const QuoteRequestPage: React.FC = () => {
                     {getPublicPriceText({ amount: selectedTotal, mode: priceDisplayMode, loading: priceDisplayLoading })}
                   </div>
                 </div>
+                )}
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
                   className="mt-5 h-12 w-full rounded-xl bg-[#001E45] font-semibold text-white hover:bg-[#002D66] disabled:bg-slate-300"
                 >
-                  {isSubmitting ? <Loader2 className="mx-auto animate-spin" size={20} /> : "견적 요청 완료"}
+                  {isSubmitting ? <Loader2 className="mx-auto animate-spin" size={20} /> : (quickMode ? "빠른 견적 요청하기" : "견적 요청 완료")}
                 </button>
               </aside>
             </div>

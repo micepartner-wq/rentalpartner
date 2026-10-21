@@ -284,6 +284,43 @@ const INSTALLATION_CASES_SCHEMA_MESSAGE = '상세 상단 이미지 저장 기능
 
 const INSTALLATION_SCHEMA_MESSAGE = '설치사진 저장 기능이 아직 준비되지 않았습니다. 관리자에게 DB 업데이트(add_product_installation_scenes.sql) 적용을 요청해주세요. 입력 내용은 유지됩니다.';
 
+/** 상품 없이 접수되는 '빠른 견적 문의'가 연결되는 전용 항목의 상품 코드. 일반 상품 목록/사이트맵에는 나오지 않는 종류(place)다. */
+export const QUICK_QUOTE_PRODUCT_CODE = 'QUICK-QUOTE';
+let quickQuoteProductId: string | null = null;
+
+/** 빠른 견적용 전용 항목의 ID. 견적(bookings)은 상품 ID가 필수라서 상품 없는 요청도 이 항목에 연결한다. 없으면 한 번 만든다. */
+export const getQuickQuoteProductId = async (): Promise<string> => {
+    if (quickQuoteProductId) return quickQuoteProductId;
+    const find = async (): Promise<string | undefined> => {
+        const { data, error } = await supabase.from('products').select('id').eq('product_code', QUICK_QUOTE_PRODUCT_CODE).limit(1).maybeSingle();
+        if (error) throw error;
+        return data?.id as string | undefined;
+    };
+    let id = await find();
+    if (!id) {
+        const { data, error } = await supabase.from('products').insert([{
+            product_code: QUICK_QUOTE_PRODUCT_CODE,
+            name: '[시스템] 빠른 견적 문의 (상품 미지정)',
+            category: '',
+            price: 0,
+            stock: 0,
+            description: '삭제하지 마세요. 상품을 고르지 않고 접수되는 빠른 견적 문의가 연결되는 시스템 항목입니다.',
+            short_description: '',
+            catalog_type: 'general',
+            product_type: 'place',
+        }]).select('id').single();
+        if (error) {
+            // 동시에 다른 요청이 먼저 만들었을 수 있으니(상품 코드는 유일) 다시 조회해 본다.
+            id = await find();
+            if (!id) throw error;
+        } else {
+            id = data.id as string;
+        }
+    }
+    quickQuoteProductId = id;
+    return id;
+};
+
 // Fetch only the referenced products; a deleted product is simply absent from the result.
 export const getProductsByIds = async (ids: string[]): Promise<Product[]> => {
     const uniqueIds = [...new Set(ids.filter(Boolean))];
