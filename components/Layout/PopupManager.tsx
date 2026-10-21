@@ -9,7 +9,7 @@ export const PopupManager: React.FC = () => {
     // 화면 크기는 렌더 때 한 번만 읽지 않고 변경(회전, 주소창 변화)에 맞춰 갱신한다.
     // 모바일에서 vh 는 주소창/하단 바를 뺀 실제 보이는 높이보다 커서, innerHeight 로 계산한다.
     const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
-    const isMobile = viewport.w <= 640;
+    const isMobile = viewport.w < 768;
 
     useEffect(() => {
         const onResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
@@ -72,7 +72,7 @@ export const PopupManager: React.FC = () => {
         setPopups(prev => prev.filter(p => p.id !== id));
     };
 
-    if (loading || popups.length === 0) return null;
+    if (isMobile || loading || popups.length === 0) return null;
 
     return (
         <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center sm:block sm:inset-auto">

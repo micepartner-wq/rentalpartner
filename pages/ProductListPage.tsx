@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useProductsPageData } from "../src/hooks/useProductsPageData";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -28,6 +28,7 @@ import { buildBreadcrumbJsonLd, toJsonLd } from "../src/utils/seo";
 
 const ALL_LABEL = "전체";
 const SITE_URL = "https://rentalpartner.kr";
+const PAGE_SIZE = 12;
 
 const normalizeName = (value?: string | null) => String(value || "").trim();
 
@@ -43,13 +44,14 @@ export const ProductListPage: React.FC = () => {
   const sectionId = searchParams.get("sectionId");
 
   const { data, isLoading: loading } = useProductsPageData(sectionId);
-  const [visibleCount, setVisibleCount] = useState(24);
+  const [currentPage, setCurrentPage] = useState(1);
+  const listTopRef = useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = useState<'default' | 'price_desc' | 'price_asc' | 'name'>('default');
   const [searchInCat, setSearchInCat] = useState('');
 
   useEffect(() => {
-    setVisibleCount(24);
-  }, [categorySlug, subcategorySlug, legacyCategory, sectionId]);
+    setCurrentPage(1);
+  }, [categorySlug, subcategorySlug, legacyCategory, sectionId, sortBy, searchInCat]);
 
   const products = useMemo(() => {
     if (!data?.productData) return [];
@@ -287,6 +289,16 @@ export const ProductListPage: React.FC = () => {
     });
   }, [categories, filteredProducts, sortBy, searchInCat]);
 
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE));
+  const activePage = Math.min(currentPage, totalPages);
+  const pageStart = (activePage - 1) * PAGE_SIZE;
+  const firstPageButton = Math.max(1, Math.min(activePage - 2, totalPages - 4));
+  const pageButtons = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstPageButton + index);
+  const changePage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    listTopRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  };
+
   const productRootById = useMemo(() => {
     const map = new Map<string, Category>();
     products.forEach((product) => {
@@ -514,9 +526,10 @@ export const ProductListPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-100 pb-4 pt-6 md:pt-8">
+            <div ref={listTopRef} className="scroll-mt-24 flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-100 pb-4 pt-6 md:pt-8">
               <div className="text-sm text-gray-500">
                 총 <span className="font-semibold text-[#001E45]">{sortedProducts.length}</span>개의 상품
+                <span className="ml-2 text-xs text-slate-400">{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, sortedProducts.length)}개 표시</span>
               </div>
               <div className="flex w-full md:w-auto items-center gap-3">
                 <input
@@ -539,7 +552,7 @@ export const ProductListPage: React.FC = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
-              {sortedProducts.slice(0, visibleCount).map((product) => {
+              {sortedProducts.slice(pageStart, pageStart + PAGE_SIZE).map((product) => {
                 const root = product.id ? productRootById.get(product.id) : undefined;
                 return (
                   <ProductCard
@@ -552,15 +565,17 @@ export const ProductListPage: React.FC = () => {
               })}
             </div>
 
-            {visibleCount < sortedProducts.length && (
-              <div className="mt-12 flex justify-center">
-                <button
-                  onClick={() => setVisibleCount(prev => prev + 24)}
-                  className="px-8 py-3 rounded-xl border border-slate-200 bg-white text-[15px] font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-[#001E45] hover:border-[#001E45]"
-                >
-                  더 보기 ({visibleCount} / {sortedProducts.length})
-                </button>
-              </div>
+            {totalPages > 1 && (
+              <nav aria-label="상품 목록 페이지" className="mt-10 flex flex-col items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <button type="button" disabled={activePage === 1} onClick={() => changePage(activePage - 1)} className="h-10 rounded-lg px-3 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30">이전</button>
+                  {pageButtons.map(page => (
+                    <button key={page} type="button" aria-label={`${page}페이지`} aria-current={page === activePage ? 'page' : undefined} onClick={() => changePage(page)} className={`h-10 w-10 rounded-lg text-sm font-semibold transition-colors ${page === activePage ? 'bg-[#001E45] text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{page}</button>
+                  ))}
+                  <button type="button" disabled={activePage === totalPages} onClick={() => changePage(activePage + 1)} className="h-10 rounded-lg px-3 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30">다음</button>
+                </div>
+                <p aria-live="polite" className="text-xs text-slate-400">{activePage} / {totalPages} 페이지</p>
+              </nav>
             )}
           </>
         )}

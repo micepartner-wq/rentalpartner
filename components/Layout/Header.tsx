@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, ShoppingBag, ChevronDown } from "lucide-react";
+import { Search, ShoppingBag, ChevronDown, Menu } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Container } from "../ui/Container";
 import {
@@ -19,26 +19,6 @@ import {
 
 const BellIcon = ({ className }: { className?: string }) => (
   <img src="/notifications.svg" alt="알림" className={className} />
-);
-
-const MenuIcon = ({ className }: { className?: string }) => (
-  <div
-    className={`${className} bg-current`}
-    style={{
-      maskImage: "url(/menu.svg)",
-      WebkitMaskImage: "url(/menu.svg)",
-      maskRepeat: "no-repeat",
-      WebkitMaskRepeat: "no-repeat",
-      maskPosition: "center",
-      WebkitMaskPosition: "center",
-      maskSize: "contain",
-      WebkitMaskSize: "contain",
-    }}
-  />
-);
-
-const MobileMenuIcon = ({ className }: { className?: string }) => (
-  <img src="/menu.svg" alt="메뉴" className={className} />
 );
 
 const ProfileIcon = ({ className }: { className?: string }) => (
@@ -319,7 +299,7 @@ export const Header: React.FC = () => {
     <header className={`w-full bg-white pointer-events-auto transition-transform duration-300 ease-out motion-reduce:transition-none ${isHeaderVisible ? '' : '-translate-y-full pointer-events-none'}`}>
       <div className={`w-full bg-white ${location.pathname === '/' ? '' : 'border-b border-gray-200 shadow-sm'}`}>
         {/* Top Utility Links - Premium Subtle Style */}
-        <div className="hidden md:block xl:hidden bg-[#F8F9FA] border-b border-gray-100 py-2">
+        <div className="hidden bg-[#F8F9FA] border-b border-gray-100 py-2">
           <Container>
             <div className="flex justify-end gap-5 text-[12px] text-gray-500 font-medium items-center">
               {user ? (
@@ -392,9 +372,9 @@ export const Header: React.FC = () => {
         </div>
 
         {/* Main Header Area */}
-        <div className="h-[54px] md:h-[72px] xl:h-[82px] bg-white border-b border-gray-100 relative z-50">
+        <div className="h-[64px] md:h-[82px] bg-white border-b border-gray-100 relative z-50">
           <Container className="h-full">
-            <div className="h-full flex items-center justify-between gap-4 xl:gap-7">
+            <div className="h-full flex items-center justify-between gap-2 md:gap-3">
               {/* Logo and Subtitle */}
               <Link
                 to="/"
@@ -408,7 +388,7 @@ export const Header: React.FC = () => {
                 />
               </Link>
 
-              <nav className="hidden xl:flex h-full items-center gap-1 flex-1 ml-7" aria-label="주요 메뉴">
+              <nav className="hidden md:flex h-full items-center gap-0 flex-1 ml-2 lg:ml-4" aria-label="주요 메뉴">
                 <div
                   className="h-full flex items-center"
                   onMouseEnter={() => setShowDesktopMenu(true)}
@@ -418,7 +398,7 @@ export const Header: React.FC = () => {
                     onClick={() => { setShowDesktopMenu(false); navigate('/products'); }}
                     onFocus={() => setShowDesktopMenu(true)}
                     aria-expanded={showDesktopMenu}
-                    className={`h-full inline-flex items-center gap-2 px-3 text-[15px] font-semibold whitespace-nowrap transition-colors ${showDesktopMenu ? 'text-[#00659b]' : 'text-[#102a47] hover:text-[#00659b]'}`}
+                    className={`h-full inline-flex items-center gap-1 px-1.5 lg:px-2 text-[13px] lg:text-[14px] font-semibold whitespace-nowrap transition-colors ${showDesktopMenu ? 'text-[#00659b]' : 'text-[#102a47] hover:text-[#00659b]'}`}
                   >
                     렌탈 상품 <ChevronDown className="w-4 h-4" />
                   </button>
@@ -426,7 +406,7 @@ export const Header: React.FC = () => {
                 {gnbSectionTabs.map((tab) => {
                   const path = resolveGnbTabPath(tab);
                   const isExternal = /^https?:\/\//i.test(path);
-                  const className = `px-3 text-[14px] font-medium whitespace-nowrap transition-colors ${!isExternal && isGnbSectionActive(path) ? 'text-[#00659b]' : 'text-slate-600 hover:text-[#00659b]'}`;
+                  const className = `px-1.5 lg:px-2 text-[12px] lg:text-[13px] font-medium whitespace-nowrap transition-colors ${!isExternal && isGnbSectionActive(path) ? 'text-[#00659b]' : 'text-slate-600 hover:text-[#00659b]'}`;
                   return isExternal ? (
                     <a key={tab.id || `${tab.name}-${path}`} href={path} target="_blank" rel="noopener noreferrer" onMouseEnter={() => setShowDesktopMenu(false)} className={className}>{tab.name}</a>
                   ) : (
@@ -435,10 +415,8 @@ export const Header: React.FC = () => {
                 })}
               </nav>
 
-              <div className="hidden md:block xl:hidden flex-1" />
-
               {/* Right Aligned Area: Search + Actions */}
-              <div className="flex items-center gap-1 xl:gap-4 justify-end">
+              <div className="flex items-center gap-1 md:gap-1 lg:gap-2 justify-end">
                 {/* Search Bar (Desktop only, mobile relies on BottomNav) */}
                 <form 
                   onSubmit={(e) => {
@@ -448,7 +426,7 @@ export const Header: React.FC = () => {
                       navigate(`/search?q=${encodeURIComponent(target.value.trim())}`);
                     }
                   }}
-                  className="hidden md:flex flex-none relative group w-[320px] xl:w-[210px] 2xl:w-[250px]"
+                  className="hidden lg:flex flex-none relative group w-[190px] 2xl:w-[250px]"
                   onMouseEnter={() => setShowDesktopMenu(false)}
                 >
                   <input
@@ -466,12 +444,12 @@ export const Header: React.FC = () => {
                 <div className="flex items-center gap-0 relative z-50" onMouseEnter={() => setShowDesktopMenu(false)}>
                   <Link
                     to={user ? "/mypage" : "/login"}
-                    className="hidden md:flex xl:hidden w-10 h-10 md:w-12 md:h-12 items-center justify-center text-gray-800 transition-colors rounded-full hover:bg-gray-100"
+                    className="hidden w-10 h-10 md:w-12 md:h-12 items-center justify-center text-gray-800 transition-colors rounded-full hover:bg-gray-100"
                     aria-label={user ? '마이페이지' : '로그인'}
                   >
                     <ProfileIcon className="w-6 h-6 md:w-7 md:h-7" />
                   </Link>
-                  <div className="hidden xl:block relative">
+                  <div className="hidden md:block relative">
                     <button
                       type="button"
                       onClick={() => setShowAccountMenu((value) => !value)}
@@ -495,7 +473,7 @@ export const Header: React.FC = () => {
                       </>
                     )}
                   </div>
-                  <Link to="/quote-cart" aria-label="장바구니" className="hidden xl:flex w-10 h-10 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 transition-colors"><ShoppingBag className="w-5 h-5" /></Link>
+                  <Link to="/quote-cart" aria-label="장바구니" className="hidden md:flex w-9 h-9 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 transition-colors"><ShoppingBag className="w-5 h-5" /></Link>
                   <div className="relative z-[60]">
                     <NotificationDropdown
                       notifications={notifications}
@@ -506,17 +484,19 @@ export const Header: React.FC = () => {
                   </div>
                   {/* Mobile Menu Toggle Button */}
                   <button
-                    className="md:hidden w-10 h-10 flex items-center justify-center text-gray-800 hover:bg-gray-100 rounded-full"
+                    type="button"
+                    className="md:hidden w-11 h-11 flex items-center justify-center text-[#102a47] hover:bg-slate-100 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                     onClick={() => setShowMobileMenu(true)}
+                    aria-label="전체 메뉴 열기"
                   >
-                    <MobileMenuIcon className="w-6 h-6 object-contain" />
+                    <Menu className="w-6 h-6" strokeWidth={1.6} />
                   </button>
                 </div>
               </div>
             </div>
           </Container>
           <div
-            className={`hidden xl:block absolute top-full left-0 w-full z-50 transition-all duration-200 ${showDesktopMenu ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
+            className={`hidden md:block absolute top-full left-0 w-full z-50 transition-all duration-200 ${showDesktopMenu ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
             onMouseEnter={() => setShowDesktopMenu(true)}
             onMouseLeave={() => setShowDesktopMenu(false)}
           >
@@ -524,11 +504,11 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Premium GNB - Horizontal Scroll on Mobile, Centered on Desktop */}
-        <div className={`block xl:hidden border-t ${location.pathname === '/' ? '' : 'border-b'} border-gray-100 relative bg-white z-40`}>
+        {/* Legacy secondary navigation is intentionally omitted from the header. */}
+        <div className="hidden">
           <Container>
-            <div className="relative flex justify-start w-full h-[44px] md:h-[56px] transition-all duration-300">
-              <nav className="flex h-full items-stretch justify-start gap-1 min-[375px]:gap-2 sm:gap-6 md:gap-2 w-max min-w-full md:w-auto overflow-x-auto md:overflow-visible no-scrollbar scroll-smooth snap-x md:-ml-4 px-0">
+            <div className="relative flex justify-start w-full h-[48px] transition-all duration-300">
+              <nav className="flex h-full items-center justify-start gap-2 w-max min-w-full overflow-x-auto no-scrollbar scroll-smooth snap-x px-0.5">
                 <div
                   className="hidden md:block h-full"
                   onMouseEnter={() => setShowDesktopMenu(true)}
@@ -538,7 +518,7 @@ export const Header: React.FC = () => {
                     onClick={() => { setShowDesktopMenu(false); navigate("/products"); }}
                     className={`relative flex h-full items-center gap-2 whitespace-nowrap text-[15px] font-[550] px-4 transition-all after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 md:after:-bottom-[2px] after:h-[2px] after:transition-colors ${showDesktopMenu ? "text-[#001E45] after:bg-[#001E45]" : "text-gray-600 hover:text-[#001E45] after:bg-transparent hover:after:bg-[#001E45]"}`}
                   >
-                    <MenuIcon className="w-6 h-6" /> 전체 메뉴
+                    <Menu className="w-6 h-6" /> 전체 메뉴
                   </button>
                 </div>
 
@@ -546,9 +526,9 @@ export const Header: React.FC = () => {
                   const path = resolveGnbTabPath(tab);
                   const isExternal = /^https?:\/\//i.test(path);
                   const isActive = !isExternal && isGnbSectionActive(path);
-                  const className = `relative flex h-full flex-shrink-0 items-center whitespace-nowrap text-[14px] min-[357px]:text-[15px] font-[550] transition-all px-1 min-[375px]:px-2 sm:px-4 after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 md:after:-bottom-[2px] after:h-[2px] after:transition-colors ${isActive
-                    ? 'text-[#001E45] after:bg-[#001E45]'
-                    : 'text-gray-600 hover:text-[#001E45] after:bg-transparent hover:after:bg-[#001E45]'
+                  const className = `relative flex h-[34px] flex-shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[13px] font-semibold transition-colors ${isActive
+                    ? 'border-[#d7e9ef] bg-white text-[#00659b] shadow-sm'
+                    : 'border-transparent bg-transparent text-slate-500 hover:bg-white hover:text-[#00659b]'
                     }`;
 
                   if (isExternal) {

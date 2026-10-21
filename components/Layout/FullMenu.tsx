@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ChevronRight } from 'lucide-react';
+import { X, ChevronRight, ArrowUpRight, Megaphone, MessageSquare, Headphones, Printer, Armchair, Monitor, Refrigerator, Tv, Package, Sparkles, Grid2X2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { NavMenuItem, getAllNavMenuItems } from '../../src/api/cmsApi';
 import { getCategories, type Category } from '../../src/api/categoryApi';
@@ -18,6 +18,20 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const { user, userProfile, logout } = useAuth();
+
+    useEffect(() => {
+        if (variant !== 'mobile') return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [variant, onClose]);
 
     useEffect(() => {
         const loadCategoriesOnly = async () => {
@@ -141,192 +155,74 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
         return seoLink && seoLink !== '/products' ? seoLink : `/products?category=${encodeURIComponent(groupName)}`;
     };
 
+    if (variant === 'mobile') {
+        const categoryIcon = (name: string) => {
+            if (name.includes('사무기기')) return Printer;
+            if (name.includes('가구')) return Armchair;
+            if (name.includes('IT')) return Monitor;
+            if (name.includes('가전')) return Refrigerator;
+            if (name.includes('TV') || name.includes('캠')) return Tv;
+            if (name.includes('패키지')) return Package;
+            if (name.includes('행사')) return Sparkles;
+            return Grid2X2;
+        };
+
+        return (
+            <div className="fixed inset-0 z-[9999]">
+                <button type="button" aria-label="메뉴 닫기" onClick={onClose} className="absolute inset-0 bg-[#102a47]/30 backdrop-blur-sm" />
+                <div role="dialog" aria-modal="true" aria-label="전체 메뉴" className="absolute inset-y-0 right-0 flex w-[92vw] max-w-[420px] flex-col bg-[#f7f9fb] shadow-2xl animate-slideInRight motion-reduce:animate-none">
+                    <div className="flex h-[76px] shrink-0 items-center justify-between px-6">
+                        <Link to="/" onClick={onClose} aria-label="렌탈어때 홈"><img src="/logo.png" alt="렌탈어때" className="h-7 w-auto" /></Link>
+                        <button autoFocus type="button" onClick={onClose} aria-label="전체 메뉴 닫기" className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-100"><X size={21} strokeWidth={1.6} /></button>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
+                        <section className="rounded-2xl bg-[#e9f0f5] p-5">
+                            <p className="mb-2 text-[11px] font-semibold tracking-[0.15em] text-[#53758c]">RENTAL PARTNER</p>
+                            <h2 className="text-[22px] font-bold leading-snug tracking-tight text-[#102a47]">{user ? `${userProfile?.name || '고객'}님, 반갑습니다` : <>필요한 순간,<br />렌탈어때와 함께</>}</h2>
+                            <div className="mt-5 flex items-center gap-4">
+                                <Link to={user ? '/mypage' : '/login'} onClick={onClose} className="inline-flex min-h-11 items-center gap-5 rounded-xl bg-[#102a47] px-4 text-[13px] font-semibold text-white hover:bg-[#234761]">{user ? '마이페이지' : '로그인'}<ArrowUpRight size={16} /></Link>
+                                <Link to={user ? '/quote-cart' : '/signup'} onClick={onClose} className="text-[13px] font-medium text-[#537085] hover:text-[#102a47]">{user ? '장바구니' : '회원가입'}<ChevronRight size={14} className="ml-1 inline" /></Link>
+                            </div>
+                        </section>
+                        <Link to="/quote-request" onClick={onClose} className="mt-3 flex min-h-[56px] items-center justify-between gap-3 rounded-2xl border border-[#cbdfe9] bg-white px-4 py-3 text-[#00659b] transition-colors hover:bg-[#edf5f9]">
+                            <span className="text-[14px] font-semibold">견적 문의하기</span>
+                            <ArrowUpRight size={19} strokeWidth={1.7} />
+                        </Link>
+                        <nav aria-label="고객 서비스" className="my-5 grid grid-cols-3 rounded-2xl border border-slate-100 bg-white py-4">
+                            {[{ label: '공지사항', to: '/notice', Icon: Megaphone }, { label: '설치후기', to: '/review', Icon: MessageSquare }, { label: '고객센터', to: '/cs', Icon: Headphones }].map(({ label, to, Icon }) => <Link key={to} to={to} onClick={onClose} className="flex flex-col items-center gap-2 border-r border-slate-100 text-slate-600 last:border-0 hover:text-[#00659b]"><Icon size={21} strokeWidth={1.5} /><span className="text-[12px] font-medium">{label}</span></Link>)}
+                        </nav>
+                        <div className="mb-3 mt-7 flex items-center justify-between px-1"><h3 className="text-[16px] font-bold text-[#102a47]">어떤 제품을 찾으세요?</h3><Link to="/products" onClick={onClose} className="inline-flex items-center text-[12px] text-slate-500">전체보기<ChevronRight size={14} /></Link></div>
+                        <nav aria-label="렌탈 상품 카테고리" className="grid grid-cols-2 gap-2.5">
+                            {loading && <p className="col-span-2 py-6 text-center text-sm text-slate-500">상품 메뉴를 불러오고 있어요.</p>}
+                            {groups.map(group => { const Icon = categoryIcon(group.name); return <Link key={group.name} to={getGroupLink(group.name)} onClick={onClose} className="group flex min-h-[100px] flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 transition-colors hover:border-[#b9d3e1] hover:bg-[#f0f6fa]"><Icon size={24} strokeWidth={1.4} className="text-[#53758c]" /><span className="mt-3 flex items-center justify-between gap-1 text-[13px] font-semibold text-[#243e53]">{group.name}<ArrowUpRight size={14} className="shrink-0 text-slate-400" /></span></Link>; })}
+                        </nav>
+                        {user && <div className="mt-6 flex justify-end border-t border-slate-200 pt-4"><button type="button" onClick={() => { logout(); onClose(); }} className="p-2 text-xs text-slate-500 hover:text-slate-800">로그아웃</button></div>}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div
-            className={`z-50 ${variant === 'mobile' ? 'fixed inset-0' : 'absolute top-full left-0 w-full'}`}
-            style={variant === 'mobile' ? { zIndex: 9999 } : {}}
-        >
-            {/* Backdrop for Mobile */}
-            {variant === 'mobile' && (
-                <div
-                    className="absolute inset-0 bg-slate-900/28 backdrop-blur-[2px] animate-fadeIn"
-                    onClick={onClose}
-                />
-            )}
-
-            {/* Panel */}
-            <div
-                className={`
-                    bg-white flex flex-col
-                    ${variant === 'mobile'
-                        ? 'absolute top-0 right-0 bottom-0 w-[82vw] max-w-[360px] shadow-[0_18px_48px_rgba(15,23,42,0.18)] overflow-hidden animate-slideInRight'
-                        : 'w-full border-t border-slate-200 shadow-xl max-h-[70vh]'}
-                `}
-                onMouseLeave={variant === 'desktop' ? onClose : undefined}
-            >
-                {/* Header - Only for Mobile */}
-                {variant === 'mobile' && (
-                    <>
-                        <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-white">
-                            <img src="/ONlogo.png" alt="렌탈어때" className="h-[26px] object-contain" />
-                            <button
-                                onClick={onClose}
-                                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors"
-                            >
-                                <X size={22} className="text-current" />
-                            </button>
-                        </div>
-                    </>
-                )}
-
-                {/* Content */}
-                <div className={`flex-1 overflow-y-auto ${variant === 'mobile' ? '' : 'pt-8 px-8 pb-16'}`}>
-                    <Container className={variant === 'mobile' ? '!px-0 !w-full !max-w-none' : ''}>
-                        <div className={`${variant === 'mobile' ? 'pb-6' : 'grid grid-cols-1 md:grid-cols-4 gap-8'}`}>
-                            {variant === 'mobile' && (
-                                <div className="px-6 py-6 border-b border-slate-100 bg-white">
-                                    {user ? (
-                                        <>
-                                            <h3 className="text-[20px] leading-[1.35] font-semibold text-slate-800">
-                                                {(userProfile?.name || '고객')}님, 안녕하세요!
-                                            </h3>
-                                            <div className="mt-5 grid grid-cols-2 gap-2">
-                                                <Link
-                                                    to="/mypage"
-                                                    onClick={onClose}
-                                                    className="rounded-2xl bg-slate-100 py-3 text-center text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
-                                                >
-                                                    마이페이지
-                                                </Link>
-                                                <Link
-                                                    to="/cs"
-                                                    onClick={onClose}
-                                                    className="rounded-2xl border border-slate-100 bg-white py-3 text-center text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-                                                >
-                                                    고객센터
-                                                </Link>
-                                            </div>
-                                            <div className="mt-2 grid grid-cols-3 gap-2">
-                                                <Link to="/notice" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">공지사항</Link>
-                                                <Link to="/review" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">설치후기</Link>
-                                                <Link to="/event" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">이벤트</Link>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <h3 className="text-[20px] leading-[1.35] font-semibold text-slate-800">
-                                                환영합니다!
-                                            </h3>
-                                            <div className="mt-5 grid grid-cols-2 gap-2">
-                                                <Link
-                                                    to="/login"
-                                                    onClick={onClose}
-                                                    className="rounded-2xl bg-slate-100 py-3 text-center text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
-                                                >
-                                                    로그인
-                                                </Link>
-                                                <Link
-                                                    to="/signup"
-                                                    onClick={onClose}
-                                                    className="rounded-2xl border border-slate-100 bg-white py-3 text-center text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-                                                >
-                                                    회원가입
-                                                </Link>
-                                            </div>
-                                            <div className="mt-2 grid grid-cols-3 gap-2">
-                                                <Link to="/notice" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">공지사항</Link>
-                                                <Link to="/review" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">설치후기</Link>
-                                                <Link to="/cs" onClick={onClose} className="rounded-2xl border border-slate-100 bg-white py-2.5 text-center text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50">고객센터</Link>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            )}
-                            {groups.map((group, idx) => (
-                                <div key={idx} className={`${variant === 'mobile' ? 'border-b border-slate-50 last:border-0' : ''}`}>
-                                    {/* Group Title */}
-                                    {variant === 'mobile' ? (
-                                        <Link
-                                            to={getGroupLink(group.name)}
-                                            onClick={onClose}
-                                            className="flex h-[60px] w-full items-center justify-between px-6 text-left transition-colors hover:bg-slate-50"
-                                        >
-                                            <span className="text-[16px] font-semibold text-slate-800">
-                                                {group.name}
-                                            </span>
-                                            <ChevronRight
-                                                size={18}
-                                                className="text-slate-400"
-                                            />
-                                        </Link>
-                                    ) : (
-                                        <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-4">
-                                            <Link
-                                                to={getGroupLink(group.name)}
-                                                onClick={onClose}
-                                                className="inline-flex hover:text-[#001E45] transition-colors"
-                                            >
-                                                {group.name}
-                                            </Link>
-                                        </h3>
-                                    )}
-
-                                    {/* Items List - Desktop only */}
-                                    <div className={variant === 'mobile' ? 'hidden' : 'block'}>
-                                        <ul className="space-y-3">
-                                            {group.items.length > 0 ? (
-                                                group.items.map(item => {
-                                                    // Resolve SEO URL prioritizing English slugs
-                                                    const seoLink = getCategoryHrefByName(categories, item.name);
-                                                    let finalLink = seoLink && seoLink !== '/products' ? seoLink : (item as any).link;
-                                                    
-                                                    // Prevent legacy category query strings
-                                                    if (finalLink?.includes('?category=')) {
-                                                        finalLink = seoLink || finalLink;
-                                                    }
-
-                                                    // Prevent subcategories from just routing to /products
-                                                    if (!finalLink || finalLink === '/products' || finalLink === '/') {
-                                                        finalLink = `/products?category=${encodeURIComponent(item.name)}`;
-                                                    }
-
-                                                    return (
-                                                        <li key={item.id}>
-                                                            <Link
-                                                                to={finalLink}
-                                                                onClick={onClose}
-                                                                className="block transition-all hover:text-[#001E45] text-slate-600 flex items-center gap-1 group text-sm"
-                                                            >
-                                                                {item.name}
-                                                            </Link>
-                                                        </li>
-                                                    );
-                                                })
-                                            ) : (
-                                                <li>
-                                                    <Link
-                                                        to={getGroupLink(group.name)}
-                                                        onClick={onClose}
-                                                        className="block p-3 text-sm text-slate-600 font-medium hover:text-[#001E45]"
-                                                    >
-                                                        바로가기
-                                                    </Link>
-                                                </li>
-                                            )}
-                                        </ul>
-                                    </div>
+        <div className="absolute top-full left-0 z-50 w-full">
+            <div className="flex max-h-[70vh] w-full flex-col border-t border-slate-200 bg-white shadow-xl" onMouseLeave={onClose}>
+                <div className="flex-1 overflow-y-auto px-8 pt-8 pb-16">
+                    <Container>
+                        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+                            {groups.map(group => (
+                                <div key={group.name}>
+                                    <h3 className="mb-4 border-b border-slate-200 pb-2 text-lg font-semibold text-slate-900"><Link to={getGroupLink(group.name)} onClick={onClose} className="inline-flex transition-colors hover:text-[#001E45]">{group.name}</Link></h3>
+                                    <ul className="space-y-3">
+                                        {group.items.length > 0 ? group.items.map(item => {
+                                            const seoLink = getCategoryHrefByName(categories, item.name);
+                                            let finalLink = seoLink && seoLink !== '/products' ? seoLink : (item as any).link;
+                                            if (finalLink?.includes('?category=')) finalLink = seoLink || finalLink;
+                                            if (!finalLink || finalLink === '/products' || finalLink === '/') finalLink = '/products?category=' + encodeURIComponent(item.name);
+                                            return <li key={item.id}><Link to={finalLink} onClick={onClose} className="flex items-center gap-1 text-sm text-slate-600 transition-all hover:text-[#001E45]">{item.name}</Link></li>;
+                                        }) : <li><Link to={getGroupLink(group.name)} onClick={onClose} className="block p-3 text-sm font-medium text-slate-600 hover:text-[#001E45]">바로가기</Link></li>}
+                                    </ul>
                                 </div>
                             ))}
-                            {user && variant === 'mobile' && (
-                                <div className="px-6 pt-5 border-t border-slate-100 flex justify-center">
-                                    <button
-                                        onClick={() => { logout(); onClose(); }}
-                                        className="py-2.5 px-6 rounded-2xl bg-slate-50 text-slate-400 font-medium text-sm hover:bg-red-50 hover:text-red-400 transition-colors"
-                                    >
-                                        로그아웃
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     </Container>
                 </div>
