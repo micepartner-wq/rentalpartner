@@ -13,7 +13,10 @@ const BENEFITS = [
 export const ProductsTrustBar: React.FC = () => (
   <div className="border-b border-slate-100 bg-white min-[1720px]:hidden">
     <Container>
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 md:grid-cols-4 md:py-5">
+      <p className="py-3 text-center text-[12px] font-medium leading-snug text-slate-600 break-keep md:hidden">
+        초기 비용 부담 완화 · 공공기관 구매 상담
+      </p>
+      <ul className="hidden gap-x-4 gap-y-3 py-4 md:grid md:grid-cols-4 md:py-5">
         {BENEFITS.map(({ icon: Icon, title, description }) => (
           <li key={title} className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#001E45]">
