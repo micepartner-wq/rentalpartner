@@ -76,8 +76,8 @@ export const InquiryManager: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <div className="mb-5 md:mb-8">
+                <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
                     <MessageSquare size={24} className="text-[#001E45]" />
                     1:1 문의 관리
                 </h1>
@@ -85,16 +85,16 @@ export const InquiryManager: React.FC = () => {
             </div>
 
             {/* Status Cards */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-                <button onClick={() => setFilter('all')} className={`p-4 rounded-2xl border transition-all ${filter === 'all' ? 'bg-[#001E45] text-white border-[#001E45] shadow-lg shadow-[#001E45]/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+            <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
+                <button onClick={() => setFilter('all')} className={`p-3 md:p-4 rounded-2xl border transition-all ${filter === 'all' ? 'bg-[#001E45] text-white border-[#001E45] shadow-lg shadow-[#001E45]/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                     <div className={`text-2xl font-extrabold ${filter === 'all' ? 'text-white' : 'text-slate-900'}`}>{inquiries.length}</div>
                     <div className={`text-xs font-bold ${filter === 'all' ? 'text-white/80' : 'text-slate-500'}`}>전체 문의</div>
                 </button>
-                <button onClick={() => setFilter('pending')} className={`p-4 rounded-2xl border transition-all ${filter === 'pending' ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                <button onClick={() => setFilter('pending')} className={`p-3 md:p-4 rounded-2xl border transition-all ${filter === 'pending' ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                     <div className={`text-2xl font-extrabold ${filter === 'pending' ? 'text-white' : 'text-orange-500'}`}>{pendingCount}</div>
                     <div className={`text-xs font-bold ${filter === 'pending' ? 'text-white/80' : 'text-slate-500'}`}>답변 대기</div>
                 </button>
-                <button onClick={() => setFilter('answered')} className={`p-4 rounded-2xl border transition-all ${filter === 'answered' ? 'bg-green-500 text-white border-green-500 shadow-lg shadow-green-500/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                <button onClick={() => setFilter('answered')} className={`p-3 md:p-4 rounded-2xl border transition-all ${filter === 'answered' ? 'bg-green-500 text-white border-green-500 shadow-lg shadow-green-500/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                     <div className={`text-2xl font-extrabold ${filter === 'answered' ? 'text-white' : 'text-green-500'}`}>{answeredCount}</div>
                     <div className={`text-xs font-bold ${filter === 'answered' ? 'text-white/80' : 'text-slate-500'}`}>답변 완료</div>
                 </button>
@@ -102,7 +102,7 @@ export const InquiryManager: React.FC = () => {
 
             {/* Inquiry List */}
             {filteredInquiries.length === 0 ? (
-                <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-20 text-center">
+                <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 md:p-20 text-center">
                     <MessageSquare size={48} className="mx-auto mb-4 text-slate-300" />
                     <p className="text-slate-500 font-medium text-lg">
                         {filter === 'all' ? '등록된 문의가 없습니다.' : filter === 'pending' ? '대기 중인 문의가 없습니다.' : '답변 완료된 문의가 없습니다.'}
@@ -114,7 +114,7 @@ export const InquiryManager: React.FC = () => {
                         <div key={item.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
                             {/* Header */}
                             <div
-                                className="p-5 cursor-pointer flex items-center gap-4"
+                                className="p-4 md:p-5 cursor-pointer flex items-center gap-3 md:gap-4"
                                 onClick={() => {
                                     if (expandedId === item.id) {
                                         setExpandedId(null);
@@ -158,11 +158,11 @@ export const InquiryManager: React.FC = () => {
 
                             {/* Expanded Content */}
                             {expandedId === item.id && (
-                                <div className="px-5 pb-5 space-y-4 animate-fadeIn">
+                                <div className="px-4 md:px-5 pb-5 space-y-4 animate-fadeIn">
                                     {/* Customer Info */}
-                                    <div className="flex gap-4 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl">
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl break-all">
                                         <span>이름: <strong>{item.user_name || '-'}</strong></span>
-                                        <span>이메일: <strong>{item.user_email || '-'}</strong></span>
+                                        <span>이메일: {item.user_email ? <a href={`mailto:${item.user_email}`} className="font-bold underline">{item.user_email}</a> : <strong>-</strong>}</span>
                                         <span>회사: <strong>{item.company_name || '-'}</strong></span>
                                     </div>
 

@@ -5,6 +5,7 @@ import { auth } from '../../src/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getUserProfileByFirebaseUid } from '../../src/api/userApi';
 import { getAuthErrorMessage } from '../../src/utils/authErrors';
+import { AdminPwaHead } from '../../components/admin/AdminPwa';
 import { getMissingSupabaseTableName, isMissingSupabaseTableError } from '../../src/utils/supabaseErrors';
 
 export const AdminLogin: React.FC = () => {
@@ -72,6 +73,7 @@ export const AdminLogin: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <AdminPwaHead />
             <div className="w-full max-w-md">
                 {/* Logo/Header */}
                 <div className="text-center mb-8">

@@ -23,6 +23,24 @@
         ],
         "headers": [
             {
+                "source": "/admin-sw.js",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "no-cache, no-store, must-revalidate"
+                    }
+                ]
+            },
+            {
+                "source": "/admin.webmanifest",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "no-cache"
+                    }
+                ]
+            },
+            {
                 "source": "/index.html",
                 "headers": [
                     {

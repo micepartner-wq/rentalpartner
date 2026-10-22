@@ -1,12 +1,15 @@
 ﻿import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Package, CalendarCheck, LayoutDashboard, ArrowLeft, Layers, Tag, Settings, Users, LogOut, User, Menu, HelpCircle, MessageSquare, Megaphone, Mail } from 'lucide-react';
 import { useAuth } from '../../src/context/AuthContext';
+import { AdminPwaHead } from '../../components/admin/AdminPwa';
+import { AdminMobileNav, useAdminCounts } from '../../components/admin/AdminMobileNav';
 
 export const AdminDashboard = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { userProfile, logout } = useAuth();
     const isRoot = location.pathname === '/admin';
+    const counts = useAdminCounts(location.pathname);
 
     const handleLogout = async () => {
         if (confirm('로그아웃 하시겠습니까?')) {
@@ -36,28 +39,30 @@ export const AdminDashboard = () => {
 
     return (
         <div className="min-h-screen bg-white">
+            <AdminPwaHead />
             {/* Admin Header */}
-            <header className="bg-gradient-to-r from-[#001E45] to-[#2A8FC2] text-white py-4 px-6 flex items-center justify-between shadow-lg">
-                <div className="flex items-center gap-4">
-                    <Link to="/" className="flex items-center gap-2 text-white/70 hover:text-white transition-colors">
+            <header className="bg-gradient-to-r from-[#001E45] to-[#2A8FC2] text-white py-3 px-4 md:py-4 md:px-6 flex items-center justify-between shadow-lg">
+                <div className="flex items-center gap-3 md:gap-4">
+                    <Link to="/" aria-label="홈으로" className="flex items-center gap-2 text-white/70 hover:text-white transition-colors">
                         <ArrowLeft size={20} />
-                        <span className="text-sm">홈으로</span>
+                        <span className="hidden md:inline text-sm">홈으로</span>
                     </Link>
-                    <h1 className="text-xl font-bold">Admin Dashboard</h1>
+                    <h1 className="text-lg md:text-xl font-bold"><span className="md:hidden">렌탈어때 관리</span><span className="hidden md:inline">Admin Dashboard</span></h1>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white font-semibold text-sm border border-white/30">
                             {userProfile?.name?.charAt(0) || <User size={16} />}
                         </div>
-                        <div className="text-sm">
+                        <div className="hidden md:block text-sm">
                             <div className="font-medium">{userProfile?.name || '관리자'}</div>
                             <div className="text-white/60 text-xs">{userProfile?.email}</div>
                         </div>
                     </div>
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg text-sm transition-colors border border-white/20"
+                        aria-label="로그아웃"
+                        className="hidden md:flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg text-sm transition-colors border border-white/20"
                     >
                         <LogOut size={16} />
                         <span>로그아웃</span>
@@ -67,7 +72,7 @@ export const AdminDashboard = () => {
 
             <div className="flex">
                 {/* Sidebar */}
-                <aside className="w-64 bg-white shadow-lg min-h-[calc(100vh-64px)]">
+                <aside className="hidden md:block w-64 bg-white shadow-lg min-h-[calc(100vh-64px)]">
                     <nav className="p-4">
                         <ul className="space-y-2">
                             {navItems.map((item) => {
@@ -93,13 +98,25 @@ export const AdminDashboard = () => {
                 </aside>
 
                 {/* Main Content */}
-                <main className="flex-1 p-6">
+                <main className="min-w-0 flex-1 p-4 pb-28 md:p-6 md:pb-6">
                     {isRoot ? (
                         <div className="space-y-8">
                             {/* Welcome Section */}
-                            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                                <h2 className="text-2xl font-bold mb-2 text-gray-900">안녕하세요, {userProfile?.name || '관리자'}님! 👋</h2>
+                            <div className="bg-white p-5 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+                                <h2 className="text-xl md:text-2xl font-bold mb-2 text-gray-900">안녕하세요, {userProfile?.name || '관리자'}님! 👋</h2>
                                 <p className="text-gray-500">렌탈어때 관리자 대시보드에 오신 것을 환영합니다.</p>
+                            </div>
+
+                            {/* 처리할 일 */}
+                            <div className="grid grid-cols-2 gap-3 md:gap-6">
+                                <Link to="/admin/rental-requests" className="rounded-2xl border border-orange-200 bg-orange-50 p-4 md:p-6">
+                                    <div className="text-3xl font-extrabold text-orange-600">{counts.quotes}</div>
+                                    <div className="mt-1 text-sm font-bold text-slate-700">대기 중인 견적</div>
+                                </Link>
+                                <Link to="/admin/inquiries" className="rounded-2xl border border-sky-200 bg-sky-50 p-4 md:p-6">
+                                    <div className="text-3xl font-extrabold text-sky-600">{counts.inquiries}</div>
+                                    <div className="mt-1 text-sm font-bold text-slate-700">답변 대기 문의</div>
+                                </Link>
                             </div>
 
                             {/* Quick Stats */}
@@ -245,6 +262,8 @@ export const AdminDashboard = () => {
                     )}
                 </main>
             </div>
+
+            <AdminMobileNav items={navItems} counts={counts} isActive={isActive} onLogout={handleLogout} />
         </div>
     );
 };
