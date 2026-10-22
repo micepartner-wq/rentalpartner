@@ -5,18 +5,26 @@ import { Helmet } from 'react-helmet-async';
 import { auth } from '../src/firebase';
 import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getUserProfileByFirebaseUid } from '../src/api/userApi';
+import { useAuth } from '../src/context/AuthContext';
 import { getAuthErrorMessage } from '../src/utils/authErrors';
 import { getMissingSupabaseTableName, isMissingSupabaseTableError } from '../src/utils/supabaseErrors';
 
 export const Login: React.FC = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    // 안드로이드 앱(APK)으로 열었는지: 앱은 로그인·아이디 저장을 기본으로 켜고, 이미 로그인돼 있으면 바로 메인으로 보낸다.
+    const isApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('RentalAppAndroid');
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         email: '',
         password: ''
     });
-    const [rememberId, setRememberId] = useState(false);
-    const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+    const [rememberId, setRememberId] = useState(isApp);
+    const [keepLoggedIn, setKeepLoggedIn] = useState(isApp);
+
+    useEffect(() => {
+        if (isApp && user) navigate('/', { replace: true });
+    }, [isApp, user, navigate]);
 
     useEffect(() => {
         const savedEmail = localStorage.getItem('rememberedEmail');
