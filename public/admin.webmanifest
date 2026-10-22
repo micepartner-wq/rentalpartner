@@ -4,7 +4,7 @@
   "short_name": "렌탈어때",
   "description": "렌탈어때 견적·문의 관리",
   "start_url": "/admin/rental-requests",
-  "scope": "/admin",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",

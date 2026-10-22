@@ -9,7 +9,7 @@ import { Download, Share } from 'lucide-react';
 export function AdminPwaHead() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
-    navigator.serviceWorker.register('/admin-sw.js', { scope: '/admin' }).catch(() => { /* 설치 기능만 빠질 뿐 화면은 정상 동작 */ });
+    navigator.serviceWorker.register('/admin-sw.js', { scope: '/' }).catch(() => { /* 설치 기능만 빠질 뿐 화면은 정상 동작 */ });
   }, []);
   return (
     <Helmet>

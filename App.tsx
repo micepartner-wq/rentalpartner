@@ -19,6 +19,7 @@ const lazyPage = <T extends Record<string, unknown>>(
   }));
 
 const MainPage = lazyPage(() => import('./pages/MainPage'), 'MainPage');
+const InstallPage = lazyPage(() => import('./pages/InstallPage'), 'InstallPage');
 const ProductListPage = lazyPage(() => import('./pages/ProductListPage'), 'ProductListPage');
 const ProductRouteResolver = lazyPage(() => import('./pages/ProductRouteResolver'), 'ProductRouteResolver');
 const MyPage = lazyPage(() => import('./pages/MyPage'), 'MyPage');
@@ -168,6 +169,8 @@ function App() {
 
             {/* Admin Login - Separate Route */}
             <Route path="/admin/login" element={withSuspense(<AdminLogin />)} />
+            {/* 관리자 앱 설치 안내(직원용, 사이트 레이아웃 없이 단독 화면) */}
+            <Route path="/install" element={withSuspense(<InstallPage />)} />
             <Route path="/admin/signup" element={withSuspense(<AdminSignup />)} />
 
             {/* Public Routes */}
