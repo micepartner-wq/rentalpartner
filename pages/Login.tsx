@@ -23,7 +23,14 @@ export const Login: React.FC = () => {
     const [keepLoggedIn, setKeepLoggedIn] = useState(isApp);
 
     useEffect(() => {
-        if (isApp && user) navigate('/', { replace: true });
+        if (!isApp) return;
+        // 앱을 처음 켰을 때(시작 주소가 /login)는 로그인 여부와 상관없이 메인으로 보낸다. 이후 로그인 버튼으로 온 경우는 그대로 보여 준다.
+        let firstOpen = false;
+        try {
+            firstOpen = !sessionStorage.getItem('appEntered');
+            sessionStorage.setItem('appEntered', '1');
+        } catch { /* 저장소를 못 써도 로그인 화면은 정상 */ }
+        if (firstOpen || user) navigate('/', { replace: true });
     }, [isApp, user, navigate]);
 
     useEffect(() => {
