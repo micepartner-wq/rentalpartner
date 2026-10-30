@@ -8,6 +8,7 @@ export interface BookingCustomerInfo {
 export interface BookingSiteInfo {
   siteType: string;
   elevatorLabel: string;
+  referralSource?: string;
 }
 
 export interface BookingRequestDetails {
@@ -37,6 +38,10 @@ export const buildBookingRequestNote = ({
     `엘리베이터 여부: ${site.elevatorLabel.trim()}`,
   ];
 
+  if (site.referralSource?.trim()) {
+    lines.push(`유입경로: ${site.referralSource.trim()}`);
+  }
+
   if (extraRequest.trim()) {
     lines.push("", `[추가 요청사항]`, extraRequest.trim());
   }
@@ -57,6 +62,7 @@ export const parseBookingRequestNote = (
     site: {
       siteType: "",
       elevatorLabel: "",
+      referralSource: "",
     },
     extraRequest: "",
   };
@@ -105,6 +111,7 @@ export const parseBookingRequestNote = (
     if (currentSection === "현장 정보") {
       if (key === "현장 유형") parsed.site.siteType = value;
       if (key === "엘리베이터 여부") parsed.site.elevatorLabel = value;
+      if (key === "유입경로") parsed.site.referralSource = value;
     }
   });
 

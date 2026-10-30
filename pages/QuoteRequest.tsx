@@ -22,6 +22,8 @@ const SITE_TYPE_OPTIONS = [
   "기타",
 ] as const;
 
+const REFERRAL_OPTIONS = ["네이버", "구글", "블로그", "지인", "기타"] as const;
+
 const ELEVATOR_OPTIONS = [
   { value: "yes", label: "있음" },
   { value: "no", label: "없음" },
@@ -70,6 +72,8 @@ export const QuoteRequestPage: React.FC = () => {
   const [customerEmail, setCustomerEmail] = useState("");
   const [installationPlace, setInstallationPlace] = useState("");
   const [siteType, setSiteType] = useState<(typeof SITE_TYPE_OPTIONS)[number]>("사무실");
+  const [referralSource, setReferralSource] = useState<string>("");
+  const [referralEtc, setReferralEtc] = useState("");
   const [elevatorType, setElevatorType] = useState<(typeof ELEVATOR_OPTIONS)[number]["value"]>("unknown");
   const [requestNote, setRequestNote] = useState("");
   const [quickNeeds, setQuickNeeds] = useState("");
@@ -134,9 +138,11 @@ export const QuoteRequestPage: React.FC = () => {
       !companyName.trim() ||
       !contactPhone.trim() ||
       !customerEmail.trim() ||
-      !installationPlace.trim()
+      !installationPlace.trim() ||
+      !referralSource ||
+      (referralSource === "기타" && !referralEtc.trim())
     ) {
-      alert("필수 입력 항목(고객명, 회사명, 연락처, 이메일, 사용 기간, 설치 장소)을 확인해 주세요.");
+      alert("필수 입력 항목(고객명, 회사명, 연락처, 이메일, 사용 기간, 설치 장소, 유입경로)을 확인해 주세요.");
       return;
     }
     if (new Date(startDate) > new Date(endDate)) {
@@ -191,6 +197,7 @@ export const QuoteRequestPage: React.FC = () => {
           site: {
             siteType,
             elevatorLabel,
+            referralSource: referralSource === "기타" ? `기타 - ${referralEtc.trim()}` : referralSource,
           },
           extraRequest: quickMode
             ? `[필요한 장비·수량]\n${quickNeeds.trim()}${requestNote.trim() ? `\n\n${requestNote.trim()}` : ""}`
@@ -272,8 +279,9 @@ export const QuoteRequestPage: React.FC = () => {
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <Container>
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-6">
+        {/* PC에서는 상세 정보 카드가 제목 줄 높이부터 시작하도록 한 격자에 놓는다(휴대폰은 제목 → 왼쪽 카드 → 상세 정보 순서). */}
+        <div className="mx-auto grid max-w-7xl gap-y-4 lg:grid-cols-[1fr_480px] lg:grid-rows-[auto_1fr] lg:gap-x-10">
+          <div className="mb-2 lg:col-start-1 lg:row-start-1">
             <Link to={quickMode ? "/products" : "/quote-cart"} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-[#001E45]">
               <ArrowLeft size={16} /> {quickMode ? "상품 둘러보기" : "장바구니로 돌아가기"}
             </Link>
@@ -284,9 +292,9 @@ export const QuoteRequestPage: React.FC = () => {
           </div>
 
           {(
-            <div className="grid gap-10 lg:grid-cols-[1fr_480px]">
+            <div className="contents">
               {quickMode ? (
-              <section className="h-fit rounded-2xl border border-slate-200 bg-white p-5">
+              <section className="h-fit rounded-2xl border border-slate-200 bg-white p-5 lg:col-start-1 lg:row-start-2 lg:self-start">
                 <h2 className="mb-1 text-lg font-semibold text-slate-900">필요한 장비와 수량 <span className="text-red-500">*</span></h2>
                 <p className="mb-3 text-xs text-slate-500">종류, 수량, 사용 목적을 자유롭게 적어 주세요. 정확하지 않아도 됩니다.</p>
                 <textarea
@@ -300,7 +308,7 @@ export const QuoteRequestPage: React.FC = () => {
                 <p className="mt-4 text-xs text-slate-500">상품을 직접 고르고 싶다면 <Link to="/products" className="font-semibold text-[#001E45] underline">상품 둘러보기</Link>에서 담아 견적을 요청할 수도 있어요.</p>
               </section>
               ) : (
-              <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-start-1 lg:row-start-2 lg:self-start">
                 <h2 className="mb-4 text-lg font-semibold text-slate-900">요청 상품</h2>
                 <div className="space-y-3">
                   {items.map((item) => {
@@ -350,7 +358,7 @@ export const QuoteRequestPage: React.FC = () => {
               </section>
               )}
 
-              <aside className="rounded-2xl border border-slate-200 bg-white p-6 h-fit">
+              <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-6">
                 <h2 className="mb-4 text-lg font-semibold text-slate-900">상세 정보</h2>
                 <div className="space-y-4">
                   <label className="block">
@@ -386,7 +394,7 @@ export const QuoteRequestPage: React.FC = () => {
                   </div>
                   <label className="block">
                     <span className="text-sm font-medium text-slate-700">설치 장소 <span className="text-red-500">*</span></span>
-                    <input value={installationPlace} onChange={(e) => setInstallationPlace(e.target.value)} placeholder="예: 서울 강남구 테헤란로 00, 5층 회의실" className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(installationPlace)}`} />
+                    <input value={installationPlace} onChange={(e) => setInstallationPlace(e.target.value)} placeholder="예: 대전 대덕구 대화로106번길 66, 펜타플렉스 705호" className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(installationPlace)}`} />
                     {hasAttemptedSubmit && !installationPlace.trim() && <p className="mt-1 text-xs text-red-500">설치 장소를 입력해주세요.</p>}
                   </label>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -407,6 +415,22 @@ export const QuoteRequestPage: React.FC = () => {
                       </select>
                     </label>
                   </div>
+                  <fieldset>
+                    <legend className="text-sm font-medium text-slate-700">유입경로 <span className="text-red-500">*</span></legend>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {REFERRAL_OPTIONS.map((option) => (
+                        <label key={option} className={`cursor-pointer rounded-full border px-4 py-2 text-sm transition-colors ${referralSource === option ? "border-[#001E45] bg-[#001E45] font-semibold text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}>
+                          <input type="radio" name="referralSource" value={option} checked={referralSource === option} onChange={() => setReferralSource(option)} className="sr-only" />
+                          {option}
+                        </label>
+                      ))}
+                    </div>
+                    {referralSource === "기타" && (
+                      <input value={referralEtc} onChange={(e) => setReferralEtc(e.target.value)} maxLength={50} placeholder="어떻게 알게 되셨는지 적어 주세요." className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${getErrorClass(referralEtc)}`} />
+                    )}
+                    {hasAttemptedSubmit && !referralSource && <p className="mt-1 text-xs text-red-500">유입경로를 선택해주세요.</p>}
+                    {hasAttemptedSubmit && referralSource === "기타" && !referralEtc.trim() && <p className="mt-1 text-xs text-red-500">기타 내용을 입력해주세요.</p>}
+                  </fieldset>
                   <label className="block">
                     <span className="text-sm font-medium text-slate-700">추가 요청사항</span>
                     <textarea value={requestNote} onChange={(e) => setRequestNote(e.target.value)} rows={5} placeholder="반입 시간 제한, 주차 가능 여부, 희망 연락 시간 등을 입력해 주세요." className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
