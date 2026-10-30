@@ -664,7 +664,8 @@ function buildProductPages(products, priceDisplayMode) {
           { name: '상품목록', url: canonical('/products') },
           { name: product.name, url: canonical(route) },
         ]),
-        {
+        // 가격 비공개(문의) 상품은 offers가 없어 구글 Product 필수 항목 오류가 나므로 마크업을 내보내지 않는다.
+        ...(normalizePriceDisplayMode(priceDisplayMode) !== 'inquiry' && typeof product.price === 'number' && product.price > 0 ? [{
           '@context': 'https://schema.org',
           '@type': 'Product',
           name: product.name,
@@ -673,15 +674,15 @@ function buildProductPages(products, priceDisplayMode) {
           category: product.category || undefined,
           sku: product.id,
           brand: { '@type': 'Brand', name: SITE_NAME },
-          offers: normalizePriceDisplayMode(priceDisplayMode) !== 'inquiry' && typeof product.price === 'number' && product.price > 0 ? {
+          offers: {
             '@type': 'Offer',
             priceCurrency: 'KRW',
             price: product.price,
             availability: product.stock === 0 ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
             url: canonical(route),
             seller: { '@type': 'Organization', name: SITE_NAME },
-          } : undefined,
-        },
+          },
+        }] : []),
       ],
       changefreq: 'weekly',
       priority: '0.7',

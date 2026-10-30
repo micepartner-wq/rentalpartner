@@ -1194,7 +1194,7 @@ export const ProductDetailPage: React.FC = () => {
         <title>{seoTitle}</title>
         <meta name="description" content={seoDescription} />
         <link rel="canonical" href={canonicalUrl} />
-        <script type="application/ld+json">{toJsonLd({ "@context": "https://schema.org", "@graph": [buildBreadcrumbJsonLd([{ name: "홈", item: `${SITE_URL}/` }, { name: "렌탈 상품 목록", item: `${SITE_URL}/products` }, { name: product.name, item: canonicalUrl }]), buildProductJsonLd({ name: product.name, description: seoDescription, url: canonicalUrl, image: seoImage, category: product.category, sku: product.id, price: product.price, stock: product.stock, includeOffers: !priceDisplayLoading && isVisiblePriceMode(priceDisplayMode) })] })}</script>
+        <script type="application/ld+json">{toJsonLd({ "@context": "https://schema.org", "@graph": [buildBreadcrumbJsonLd([{ name: "홈", item: `${SITE_URL}/` }, { name: "렌탈 상품 목록", item: `${SITE_URL}/products` }, { name: product.name, item: canonicalUrl }]), ...(!priceDisplayLoading && isVisiblePriceMode(priceDisplayMode) && typeof product.price === "number" && product.price > 0 ? [buildProductJsonLd({ name: product.name, description: seoDescription, url: canonicalUrl, image: seoImage, category: product.category, sku: product.id, price: product.price, stock: product.stock })] : [])] })}</script>
       </Helmet>
       <div className={isPackageProduct ? "package-detail-page min-h-screen pt-8 pb-36 lg:pb-14" : "min-h-screen bg-gray-50 pt-8 pb-36 lg:pb-14"}>
         <Container>
