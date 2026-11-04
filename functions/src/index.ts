@@ -30,6 +30,7 @@ const FIELD_LABELS = {
   customerEmail: ["이메일", "?대찓??"],
   siteType: ["현장 유형", "?꾩옣 ?좏삎"],
   elevatorLabel: ["엘리베이터 여부", "?섎━踰좎씠???щ?"],
+  referralSource: ["유입경로"],
 } as const;
 
 interface QuoteEmailRecipient {
@@ -124,6 +125,7 @@ interface ParsedBookingRequestNote {
   customerEmail: string;
   siteType: string;
   elevatorLabel: string;
+  referralSource: string;
   extraRequest: string;
 }
 
@@ -648,6 +650,7 @@ const parseBookingRequestNote = (
     customerEmail: "",
     siteType: "",
     elevatorLabel: "",
+    referralSource: "",
     extraRequest: "",
   };
 
@@ -702,6 +705,9 @@ const parseBookingRequestNote = (
       if (isOneOf(key, FIELD_LABELS.siteType)) parsed.siteType = value;
       if (isOneOf(key, FIELD_LABELS.elevatorLabel)) {
         parsed.elevatorLabel = value;
+      }
+      if (isOneOf(key, FIELD_LABELS.referralSource)) {
+        parsed.referralSource = value;
       }
     }
   });
@@ -813,6 +819,7 @@ const buildQuoteRequestEmailContent = (
     parsedNote.customerEmail || userProfile?.email || booking.user_email || "-";
   const siteType = parsedNote.siteType || "-";
   const elevatorLabel = parsedNote.elevatorLabel || "-";
+  const referralSource = parsedNote.referralSource || "-";
   const extraRequest = parsedNote.extraRequest || "-";
   const adminUrl = `${getAppBaseUrl()}/admin/rental-requests`;
   const subject = `[휴먼파트너] 신규 견적 요청 - ${customerName} / ${productSummary}`;
@@ -845,6 +852,7 @@ const buildQuoteRequestEmailContent = (
     `설치 장소: ${booking.installation_place || "-"}`,
     `현장 유형: ${siteType}`,
     `엘리베이터 여부: ${elevatorLabel}`,
+    `유입경로: ${referralSource}`,
     "",
     "[추가 요청사항]",
     extraRequest,
@@ -898,6 +906,7 @@ const buildQuoteRequestEmailContent = (
                   { label: "설치 장소", value: booking.installation_place || "-" },
                   { label: "현장 유형", value: siteType },
                   { label: "엘리베이터 여부", value: elevatorLabel },
+                  { label: "유입경로", value: referralSource },
                 ])}
               </tbody>
             </table>
