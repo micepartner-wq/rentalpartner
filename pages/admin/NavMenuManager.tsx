@@ -146,7 +146,7 @@ export const NavMenuManager = () => {
         <div className="h-[calc(100vh-100px)] flex flex-col">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">전체 메뉴 관리</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">상품 카테고리</h2>
                     <p className="text-slate-500 text-sm mt-1">상품관리의 카테고리와 같은 데이터입니다. 여기서 바꾸면 상품 분류와 사이트 전체 메뉴에 함께 반영됩니다.</p>
                 </div>
             </div>

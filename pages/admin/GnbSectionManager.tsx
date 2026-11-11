@@ -130,6 +130,7 @@ const resolveBoardCategorySelection = (
 };
 
 export const GnbSectionManager = () => {
+    const [workspace, setWorkspace] = useState<'posts' | 'reviews' | 'menus'>('posts');
     const [gnbTabs, setGnbTabs] = useState<TabMenuItem[]>([]);
     const [posts, setPosts] = useState<BoardPost[]>([]);
     const [boardCategories, setBoardCategories] = useState<Record<BoardCategoryBoardType, string[]>>({
@@ -178,7 +179,7 @@ export const GnbSectionManager = () => {
             setSavedBoardCategorySnapshot(serializeBoardCategorySettings(categorySettings));
         } catch (error) {
             console.error('Failed to load GNB tab posts:', error);
-            alert('GNB 탭 데이터를 불러오지 못했습니다.');
+            alert('메뉴와 게시글을 불러오지 못했습니다.');
         } finally {
             setLoading(false);
         }
@@ -240,7 +241,7 @@ export const GnbSectionManager = () => {
             closeTabModal();
         } catch (error) {
             console.error('Failed to save GNB tab:', error);
-            alert('탭 저장에 실패했습니다.');
+            alert('상단 메뉴 저장에 실패했습니다.');
         } finally {
             setTabSaving(false);
         }
@@ -248,13 +249,13 @@ export const GnbSectionManager = () => {
 
     const handleDeleteTab = async (id?: string) => {
         if (!id) return;
-        if (!confirm('이 탭을 삭제하시겠습니까?')) return;
+        if (!confirm('이 상단 메뉴를 삭제하시겠습니까?')) return;
         try {
             await deleteTabMenuItem(id);
             await loadData();
         } catch (error) {
             console.error('Failed to delete tab:', error);
-            alert('탭 삭제에 실패했습니다.');
+            alert('상단 메뉴 삭제에 실패했습니다.');
         }
     };
 
@@ -265,7 +266,7 @@ export const GnbSectionManager = () => {
             await loadData();
         } catch (error) {
             console.error('Failed to toggle tab active:', error);
-            alert('탭 상태 변경에 실패했습니다.');
+            alert('상단 메뉴 상태 변경에 실패했습니다.');
         }
     };
 
@@ -520,27 +521,40 @@ export const GnbSectionManager = () => {
             {/* Header Area */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
                 <div>
-                    <div className="flex items-center gap-2 text-[#001E45] mb-1">
-                        <div className="w-8 h-1 bg-[#001E45] rounded-full" />
-                        <span className="text-xs font-bold tracking-wider uppercase">CMS Control Center</span>
-                    </div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">GNB 섹션 관리</h1>
+                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">메뉴·게시글·후기</h1>
                     <p className="text-slate-500 mt-2 max-w-2xl">
-                        홈페이지 상단 메뉴와 각 카테고리별 콘텐츠를 통합 관리합니다.
-                        고객센터(CS)는 통합 문의 시스템과 연동되어 실시간으로 반영됩니다.
+                        게시글, 홈에 노출할 설치후기, 사이트 상단 메뉴를 각각 관리합니다.
                     </p>
                 </div>
-                <button
+                {workspace === 'posts' && <button
                     onClick={openAddModal}
                     className="group flex items-center gap-2 bg-[#001E45] text-white px-6 py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-[#001E45]/20 active:scale-95"
                 >
                     <Plus size={20} className="group-hover:rotate-90 transition-transform" />
                     <span className="font-semibold">새 게시글 등록</span>
-                </button>
+                </button>}
             </div>
 
+            <nav aria-label="사이트 콘텐츠 관리" className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+                {([
+                    { id: 'posts', label: '게시글' },
+                    { id: 'reviews', label: '홈 설치후기' },
+                    { id: 'menus', label: '상단 메뉴' },
+                ] as const).map(item => (
+                    <button key={item.id} type="button" aria-pressed={workspace === item.id}
+                        onClick={() => setWorkspace(item.id)}
+                        className={`rounded-xl px-5 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 ${workspace === item.id ? 'bg-[#001E45] text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>
+                        {item.label}
+                    </button>
+                ))}
+            </nav>
+
             <div className="flex flex-col gap-8">
-                {/* GNB Tabs Management - Matched with Filter Design */}
+                {workspace === 'menus' && <section aria-label="상단 메뉴 관리" className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+                <div>
+                    <h2 className="font-bold text-slate-900">사이트 상단 메뉴</h2>
+                    <p className="mt-1 text-sm text-slate-500">메뉴 이름과 연결 주소, 표시 순서 및 노출 여부를 설정합니다.</p>
+                </div>
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                     <div className="bg-slate-100/80 p-1 rounded-2xl inline-flex flex-nowrap gap-1 border border-slate-200/50">
                         {gnbTabs.length === 0 ? (
@@ -565,7 +579,7 @@ export const GnbSectionManager = () => {
                                     </div>
                                     
                                     {/* Action Buttons inside the tab-like item */}
-                                    <div className="flex items-center gap-0.5 ml-1 border-l border-slate-200/50 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center gap-0.5 ml-1 border-l border-slate-200/50 pl-2">
                                         <button
                                             onClick={() => toggleTabActive(tab)}
                                             className={`p-1.5 rounded-lg transition-colors ${tab.is_active ? 'text-green-500 hover:bg-green-50' : 'text-slate-400 hover:bg-slate-100'}`}
@@ -601,25 +615,16 @@ export const GnbSectionManager = () => {
                         <Plus size={20} />
                     </button>
                 </div>
-
-                {/* Divider with Label */}
-                <div className="relative py-2">
-                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div className="w-full border-t border-slate-100"></div>
-                    </div>
-                    <div className="relative flex justify-center">
-                        <span className="bg-[#f8fafc] px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">게시글 목록 및 관리</span>
-                    </div>
-                </div>
+                </section>}
 
                 {/* 홈 설치후기 슬라이드: 게시글과 연결하지 않고 관리자가 직접 만든다 */}
-                {(filterType === 'all' || filterType === 'review') && <HomeReviewSlidesManager />}
+                {workspace === 'reviews' && <HomeReviewSlidesManager />}
 
                 {/* Bottom Section: Post Management (Main Content) */}
-                <div className="space-y-6">
+                {workspace === 'posts' && <section aria-label="게시글 관리" className="space-y-6">
                     {/* Filter & Action Area */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="bg-slate-100/80 p-1 rounded-xl inline-flex gap-1 border border-slate-200/50">
+                        <div className="bg-slate-100/80 p-1 rounded-xl inline-flex flex-wrap gap-1 border border-slate-200/50">
                             <button
                                 onClick={() => setFilterType('all')}
                                 className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'all'
@@ -772,7 +777,7 @@ export const GnbSectionManager = () => {
                             </ul>
                         </div>
                     </div>
-                </div>
+                </section>}
             </div>
 
 
@@ -780,14 +785,14 @@ export const GnbSectionManager = () => {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
                         <div className="flex items-center justify-between p-4 border-b border-slate-200">
-                            <h2 className="text-lg font-bold text-slate-800">{editingTab ? 'GNB 탭 수정' : 'GNB 탭 추가'}</h2>
+                            <h2 className="text-lg font-bold text-slate-800">{editingTab ? '상단 메뉴 수정' : '상단 메뉴 추가'}</h2>
                             <button onClick={closeTabModal} className="text-slate-400 hover:text-slate-600">
                                 <X size={20} />
                             </button>
                         </div>
                         <form onSubmit={handleTabSubmit} className="p-5 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">기본 탭 빠른 선택</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">기본 메뉴 빠른 선택</label>
                                 <select
                                     value=""
                                     onChange={(e) => {
@@ -810,7 +815,7 @@ export const GnbSectionManager = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">탭 이름</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">메뉴 이름</label>
                                 <input
                                     type="text"
                                     required
@@ -884,7 +889,7 @@ export const GnbSectionManager = () => {
                         <form onSubmit={handleSubmit} className="p-5 space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">탭 종류</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">게시판 종류</label>
                                     <select
                                         value={formData.board_type}
                                         onChange={(e) => handleBoardTypeChange(e.target.value as BoardPostType)}

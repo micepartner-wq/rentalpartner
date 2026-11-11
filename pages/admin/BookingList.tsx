@@ -25,7 +25,6 @@ export const BookingList = () => {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [statusDrafts, setStatusDrafts] = useState<Record<string, Booking["status"]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const loadBookings = async () => {
@@ -33,12 +32,6 @@ export const BookingList = () => {
       setLoading(true);
       const data = await getBookings();
       setBookings(data);
-      setStatusDrafts(
-        data.reduce<Record<string, Booking["status"]>>((acc, booking) => {
-          if (booking.id) acc[booking.id] = booking.status;
-          return acc;
-        }, {}),
-      );
     } catch (error) {
       console.error("Failed to load bookings", error);
     } finally {
@@ -73,17 +66,17 @@ export const BookingList = () => {
     const config = statusConfig[status];
     const Icon = config.icon;
     return (
-      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-bold ${config.className}`}>
-        <Icon size={14} />
+      <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-bold ${config.className}`}>
+        <Icon size={14} className="shrink-0" />
         {getBookingStatusLabel(status)}
       </span>
     );
   };
 
-  const handleStatusChange = async (booking: Booking) => {
-    if (!booking.id) return;
-    const nextStatus = statusDrafts[booking.id] || booking.status;
+  const handleStatusChange = async (booking: Booking, nextStatus: Booking["status"]) => {
+    if (!booking.id || busyId) return;
     if (nextStatus === booking.status) return;
+    if (!confirm(`상태를 '${getBookingStatusLabel(booking.status)}'에서 '${getBookingStatusLabel(nextStatus)}'(으)로 변경할까요?`)) return;
 
     setBusyId(booking.id);
     try {
@@ -96,7 +89,10 @@ export const BookingList = () => {
           `견적 요청 상태가 '${getBookingStatusLabel(updated.status)}'로 변경되었습니다.`,
           updated.status === "confirmed" ? "success" : updated.status === "cancelled" ? "error" : "info",
           "/mypage",
-        );
+        ).catch((error) => {
+          console.error("Status saved, but notification failed", error);
+          alert("상태는 저장됐지만 고객 알림 전송에 실패했습니다.");
+        });
       }
     } catch (error) {
       console.error("Failed to update booking status", error);
@@ -107,7 +103,7 @@ export const BookingList = () => {
   };
 
   const handleDelete = async (bookingId?: string) => {
-    if (!bookingId) return;
+    if (!bookingId || busyId) return;
     if (!confirm("이 견적 요청을 삭제할까요?")) return;
 
     setBusyId(bookingId);
@@ -143,21 +139,20 @@ export const BookingList = () => {
     ) : (
       <>
         <select
-          value={statusDrafts[booking.id!] || booking.status}
+          value={booking.status}
           onChange={(event) =>
-            setStatusDrafts((prev) => ({ ...prev, [booking.id!]: event.target.value as Booking["status"] }))
+            void handleStatusChange(booking, event.target.value as Booking["status"])
           }
-          aria-label="상태"
-          className="min-w-[122px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
+          disabled={busyId !== null}
+          aria-label="상태 변경 (확인 후 저장)"
+          title="변경 확인 후 저장됩니다"
+          className="min-w-[122px] shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs disabled:opacity-50"
         >
           {BOOKING_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
-        <button onClick={() => handleStatusChange(booking)} className="rounded-lg bg-[#001E45] px-2.5 py-1.5 text-xs text-white">
-          저장
-        </button>
-        <button onClick={() => handleDelete(booking.id)} aria-label="삭제" className="rounded-lg p-1.5 text-red-500 hover:bg-red-50">
+        <button onClick={() => handleDelete(booking.id)} disabled={busyId !== null} aria-label="삭제" className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-50">
           <Trash2 size={18} />
         </button>
       </>
@@ -230,7 +225,7 @@ export const BookingList = () => {
       <div className="mb-4 flex items-center justify-between md:mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-800 md:text-2xl">견적 요청 관리</h2>
-          <p className="mt-1 text-sm text-slate-500">요청 단위 {visibleBookings.length}건</p>
+          <p className="mt-1 text-sm text-slate-500">요청 단위 {visibleBookings.length}건 · 상태 변경은 확인 후 저장됩니다.</p>
         </div>
         <button onClick={loadBookings} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#001E45]">
           새로고침
@@ -309,9 +304,9 @@ export const BookingList = () => {
                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">요청자</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">회사/연락처</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">요청 상품</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">사용기간</th>
+                <th className="min-w-[180px] px-4 py-3 text-left text-sm font-semibold text-slate-600">사용기간</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">설치장소</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">상태</th>
+                <th className="min-w-[124px] px-4 py-3 text-center text-sm font-semibold text-slate-600">상태</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">작업</th>
               </tr>
             </thead>
@@ -349,11 +344,12 @@ export const BookingList = () => {
                           <div className="font-semibold text-slate-900">{view.firstItemName}</div>
                           <div className="text-xs text-slate-500">상품 {view.items.length}종 / 총 수량 {view.itemCount}개</div>
                         </td>
-                        <td className="px-4 py-4 text-sm text-slate-600">
-                          {formatDate(booking.start_date)} ~ {formatDate(booking.end_date)}
+                        <td className="min-w-[180px] px-4 py-4 text-sm text-slate-600">
+                          <div className="whitespace-nowrap">{formatDate(booking.start_date)}</div>
+                          <div className="mt-0.5 whitespace-nowrap">~ {formatDate(booking.end_date)}</div>
                         </td>
                         <td className="px-4 py-4 text-sm text-slate-600">{booking.installation_place || "-"}</td>
-                        <td className="px-4 py-4 text-center">{getStatusBadge(booking.status)}</td>
+                        <td className="min-w-[124px] px-4 py-4 text-center">{getStatusBadge(booking.status)}</td>
                         <td className="px-4 py-4" onClick={(event) => event.stopPropagation()}>
                           <div className="flex items-center justify-center gap-2">{renderControls(booking)}</div>
                         </td>

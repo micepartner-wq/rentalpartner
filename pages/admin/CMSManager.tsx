@@ -6,13 +6,12 @@ import {
 import {
     getAllQuickMenuItems, addQuickMenuItem, updateQuickMenuItem, deleteQuickMenuItem, QuickMenuItem,
     getAllBanners, addBanner, updateBanner, deleteBanner, Banner,
-    getAllPopups, addPopup, updatePopup, deletePopup, Popup,
-    getAllAllianceMembers, addAllianceMember, updateAllianceMember, deleteAllianceMember, AllianceMember
+    getAllPopups, addPopup, updatePopup, deletePopup, Popup
 } from '../../src/api/cmsApi';
 import { getProducts, Product } from '../../src/api/productApi';
 import { uploadImage } from '../../src/api/storageApi';
 
-type TabType = 'quickmenu' | 'banners' | 'popups' | 'alliance';
+type TabType = 'quickmenu' | 'banners' | 'popups';
 type PopupLinkMode = 'none' | 'link' | 'product';
 
 const getPopupLinkMode = (popup?: { link?: string | null; target_product_code?: string | null }): PopupLinkMode => {
@@ -46,7 +45,6 @@ export const CMSManager: React.FC = () => {
     const [quickMenuItems, setQuickMenuItems] = useState<QuickMenuItem[]>([]);
     const [banners, setBanners] = useState<Banner[]>([]);
     const [popups, setPopups] = useState<Popup[]>([]);
-    const [allianceMembers, setAllianceMembers] = useState<AllianceMember[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
 
     // Form states
@@ -73,21 +71,18 @@ export const CMSManager: React.FC = () => {
             const quickMenuPromise = getAllQuickMenuItems().catch(e => { console.error("CMS Load Error (QuickMenu):", e); return []; });
             const bannerPromise = getAllBanners().catch(e => { console.error("CMS Load Error (Banners):", e); return []; });
             const popupPromise = getAllPopups().catch(e => { console.error("CMS Load Error (Popups):", e); return []; });
-            const alliancePromise = getAllAllianceMembers().catch(e => { console.error("CMS Load Error (Alliance):", e); return []; });
             const productsPromise = getProducts().catch(e => { console.error("CMS Load Error (Products):", e); return []; });
 
-            const [quickMenu, bannerData, popupData, allianceData, productsData] = await Promise.all([
+            const [quickMenu, bannerData, popupData, productsData] = await Promise.all([
                 quickMenuPromise,
                 bannerPromise,
                 popupPromise,
-                alliancePromise,
                 productsPromise
             ]);
 
             setQuickMenuItems(quickMenu);
             setBanners(bannerData);
             setPopups(popupData);
-            setAllianceMembers(allianceData);
             setProducts(productsData);
         } catch (error) {
             console.error('Failed to load CMS data:', error);
@@ -106,8 +101,6 @@ export const CMSManager: React.FC = () => {
         } else if (activeTab === 'popups') {
             setFormData({ title: '', image_url: '', link: '', start_date: '', end_date: '', display_order: popups.length + 1, is_active: true });
             setPopupLinkMode('none');
-        } else if (activeTab === 'alliance') {
-            setFormData({ name: '', category1: 'MICE 시설분과', category2: '호텔', address: '', phone: '', logo_url: '', display_order: allianceMembers.length + 1, is_active: true });
         }
         setShowModal(true);
     };
@@ -134,7 +127,7 @@ export const CMSManager: React.FC = () => {
         setUploading(true);
         try {
             const imageUrl = await uploadImage(file);
-            const field = targetField || (activeTab === 'alliance' ? 'logo_url' : 'image_url');
+            const field = targetField || 'image_url';
             setFormData((current: any) => ({
                 ...current,
                 [field]: imageUrl,
@@ -214,12 +207,6 @@ export const CMSManager: React.FC = () => {
                 } else {
                     await addPopup(popupData);
                 }
-            } else if (activeTab === 'alliance') {
-                if (editingItem) {
-                    await updateAllianceMember(editingItem.id, formData);
-                } else {
-                    await addAllianceMember(formData);
-                }
             }
             await loadData();
             setShowModal(false);
@@ -245,8 +232,6 @@ export const CMSManager: React.FC = () => {
                 await deleteBanner(id);
             } else if (activeTab === 'popups') {
                 await deletePopup(id);
-            } else if (activeTab === 'alliance') {
-                await deleteAllianceMember(id);
             }
             await loadData();
         } catch (error) {
@@ -263,8 +248,6 @@ export const CMSManager: React.FC = () => {
                 await updateBanner(item.id, { is_active: !item.is_active });
             } else if (activeTab === 'popups') {
                 await updatePopup(item.id, { is_active: !item.is_active });
-            } else if (activeTab === 'alliance') {
-                await updateAllianceMember(item.id, { is_active: !item.is_active });
             }
             await loadData();
         } catch (error) {
@@ -288,17 +271,16 @@ export const CMSManager: React.FC = () => {
 
     const currentItems = activeTab === 'quickmenu' ? quickMenuItems
         : activeTab === 'banners' ? banners
-            : activeTab === 'popups' ? popups
-                : activeTab === 'alliance' ? allianceMembers : [];
+            : popups;
 
     return (
         <div>
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">CMS 관리</h1>
+                    <h1 className="text-2xl font-bold text-slate-800">배너·팝업·아이콘</h1>
                     <p className="text-sm text-slate-500 mt-1">메인 페이지 UI 요소들을 관리합니다</p>
-                    <p className="text-xs text-slate-400 mt-1">GNB 탭/게시글 관리는 별도 메뉴의 "GNB 섹션 관리"에서 관리합니다.</p>
+                    <p className="text-xs text-slate-400 mt-1">상단 메뉴와 게시글은 사이트 관리의 "메뉴·게시글·후기"에서 편집합니다.</p>
                 </div>
                 <button
                     onClick={openAddModal}
@@ -342,11 +324,6 @@ export const CMSManager: React.FC = () => {
                                 {((activeTab === 'banners' || activeTab === 'popups') && item.image_url) && (
                                     <img src={item.image_url} alt={item.title} className={`w-20 h-12 rounded ${activeTab === 'banners' && item.display_mode === 'image' ? 'object-contain bg-white border border-slate-100' : 'object-cover'}`} />
                                 )}
-                                {(activeTab === 'alliance' && item.logo_url) && (
-                                    <div className="w-20 h-12 bg-gray-100 flex items-center justify-center rounded-lg">
-                                        <img src={item.logo_url} alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply" />
-                                    </div>
-                                )}
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
@@ -378,26 +355,9 @@ export const CMSManager: React.FC = () => {
                                                 {item.start_date && item.end_date ? `${item.start_date} ~ ${item.end_date}` : '상시 노출'}
                                             </span>
                                         )}
-                                        {activeTab === 'alliance' && (
-                                            <>
-                                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded border
-                                                    ${item.category1 === 'MICE 시설분과' ? 'text-[#e69b00] bg-[#fff9ea] border-[#ffe099]' :
-                                                        item.category1 === 'MICE 기획 · 운영분과' || item.category1 === 'MICE 기획분과' ? 'text-[#3b5bdb] bg-[#edf2ff] border-[#bac8ff]' :
-                                                            item.category1 === 'MICE 지원분과' ? 'text-[#0ca678] bg-[#e6fcf5] border-[#63e6be]' :
-                                                                'text-gray-600 bg-gray-100 border-gray-300'}`}
-                                                >
-                                                    {item.category1 === 'MICE 기획분과' ? 'MICE 기획 · 운영분과' : item.category1}
-                                                </span>
-                                                <span className="text-[11px] text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
-                                                    {item.category2}
-                                                </span>
-                                            </>
-                                        )}
                                     </div>
                                     <span className="text-sm text-slate-400">
-                                        {activeTab === 'alliance'
-                                            ? item.phone
-                                            : activeTab === 'banners'
+                                        {activeTab === 'banners'
                                                 ? item.target_product_code
                                                     ? `/p/${item.target_product_code}`
                                                     : (item.link || '연결 안 함')
@@ -925,107 +885,6 @@ export const CMSManager: React.FC = () => {
                                                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
                                             />
                                         </div>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Alliance Form */}
-                            {activeTab === 'alliance' && (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">상호명(이름)</label>
-                                        <input
-                                            type="text"
-                                            value={formData.name || ''}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">1차 카테고리 (분과)</label>
-                                            <select
-                                                value={formData.category1 || 'MICE 시설분과'}
-                                                onChange={(e) => setFormData({ ...formData, category1: e.target.value })}
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
-                                            >
-                                                <option value="MICE 시설분과">MICE 시설분과</option>
-                                                <option value="MICE 기획 · 운영분과">MICE 기획 · 운영분과</option>
-                                                <option value="MICE 지원분과">MICE 지원분과</option>
-                                                <option value="기타">기타</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">2차 카테고리 (분류)</label>
-                                            <input
-                                                type="text"
-                                                value={formData.category2 || ''}
-                                                onChange={(e) => setFormData({ ...formData, category2: e.target.value })}
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
-                                                placeholder="예: 호텔, 컨벤션센터 등"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">주소</label>
-                                        <input
-                                            type="text"
-                                            value={formData.address || ''}
-                                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
-                                            placeholder="주소 입력"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">전화번호</label>
-                                        <input
-                                            type="text"
-                                            value={formData.phone || ''}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#001E45]"
-                                            placeholder="042-000-0000"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">로고 이미지</label>
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            accept="image/*"
-                                            onChange={handleImageUpload}
-                                            className="hidden"
-                                        />
-                                        {formData.logo_url ? (
-                                            <div className="relative border border-gray-200 rounded-lg p-4 bg-gray-50 flex justify-center">
-                                                <img src={formData.logo_url} alt="Logo" className="h-20 object-contain mix-blend-multiply" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData({ ...formData, logo_url: '' })}
-                                                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                onClick={() => fileInputRef.current?.click()}
-                                                disabled={uploading}
-                                                className="w-full h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-[#001E45] transition-colors"
-                                            >
-                                                {uploading ? (
-                                                    <Loader2 className="animate-spin text-[#001E45]" size={20} />
-                                                ) : (
-                                                    <>
-                                                        <Upload className="text-slate-400" size={20} />
-                                                        <span className="text-sm text-slate-500">이미지 업로드</span>
-                                                    </>
-                                                )}
-                                            </button>
-                                        )}
-                                        <p className="text-xs text-slate-500 mt-1">배경이 투명하거나 흰색인 로고 이미지를 권장합니다.</p>
                                     </div>
                                 </>
                             )}

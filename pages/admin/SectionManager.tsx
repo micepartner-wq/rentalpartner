@@ -180,7 +180,7 @@ export const SectionManager: React.FC = () => {
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">섹션 관리</h1>
+                    <h1 className="text-2xl font-bold text-slate-800">메인 상품 진열</h1>
                     <p className="text-sm text-slate-500 mt-1">메인 페이지에 표시될 섹션을 관리합니다</p>
                 </div>
                 <button
