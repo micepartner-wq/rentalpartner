@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, ChevronRight, ArrowUpRight, Megaphone, MessageSquare, Headphones, Printer, Armchair, Monitor, Refrigerator, Tv, Package, Sparkles, Grid2X2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { NavMenuItem, getAllNavMenuItems } from '../../src/api/cmsApi';
-import { getCategories, isShownInMenu, type Category } from '../../src/api/categoryApi';
+import { getCategories, type Category } from '../../src/api/categoryApi';
 import { buildCategoryMaps, getCategoryHref, getCategoryHrefByName, sortCategories } from '../../src/utils/productCategoryRouting';
 import { Container } from '../ui/Container';
 import { useAuth } from '../../src/context/AuthContext';
@@ -71,14 +71,13 @@ export const FullMenu: React.FC<FullMenuProps> = ({ onClose, variant = 'mobile',
     const categoryGroups = React.useMemo(() => {
         if (categories.length === 0) return [];
 
-        // 전체 메뉴 관리에서 숨긴 카테고리(show_in_menu=false)는 메뉴에서 뺀다. 상품 목록 주소는 그대로 동작한다.
         const { byId, childrenByParentId } = buildCategoryMaps(categories);
-        const roots = sortCategories(categories.filter((category) => !category.parent_id && isShownInMenu(category)));
+        const roots = sortCategories(categories.filter((category) => !category.parent_id));
 
         return roots.map((root) => ({
             name: root.name,
             link: getCategoryHref(root, byId),
-            items: sortCategories((childrenByParentId.get(root.id || null) || []).filter(isShownInMenu)).map((child) => ({
+            items: sortCategories(childrenByParentId.get(root.id || null) || []).map((child) => ({
                 id: child.id,
                 name: child.name,
                 link: getCategoryHref(child, byId),

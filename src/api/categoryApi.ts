@@ -7,12 +7,8 @@ export interface Category {
   display_order: number;
   parent_id?: string | null;
   level?: number;
-  // 전체 메뉴 노출 여부. add_category_show_in_menu.sql 실행 전에는 컬럼이 없어 undefined 이므로 "노출"로 본다.
-  show_in_menu?: boolean;
   created_at?: string;
 }
-
-export const isShownInMenu = (category: Pick<Category, "show_in_menu">) => category.show_in_menu !== false;
 
 export interface CategoryTree extends Category {
   children?: CategoryTree[];
