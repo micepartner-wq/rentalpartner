@@ -7,8 +7,12 @@ export interface Category {
   display_order: number;
   parent_id?: string | null;
   level?: number;
+  // 전체 메뉴 노출 여부. add_category_show_in_menu.sql 실행 전에는 컬럼이 없어 undefined 이므로 "노출"로 본다.
+  show_in_menu?: boolean;
   created_at?: string;
 }
+
+export const isShownInMenu = (category: Pick<Category, "show_in_menu">) => category.show_in_menu !== false;
 
 export interface CategoryTree extends Category {
   children?: CategoryTree[];
@@ -114,4 +118,27 @@ export const deleteCategory = async (id: string): Promise<void> => {
   const { error } = await supabase.from("categories").delete().eq("id", id);
 
   if (error) throw error;
+};
+
+// 카테고리에 연결된 상품 id 목록. category_id 로 연결된 것과, 아직 id 없이 이름 문자열로만 연결된 것을 함께 센다.
+export const getProductIdsOfCategory = async (id: string, name: string): Promise<string[]> => {
+  const [byId, byName] = await Promise.all([
+    supabase.from("products").select("id").eq("category_id", id),
+    supabase.from("products").select("id").eq("category", name.trim()),
+  ]);
+  if (byId.error) throw byId.error;
+  if (byName.error) throw byName.error;
+  return [...new Set([...(byId.data || []), ...(byName.data || [])].map((row) => row.id as string))];
+};
+
+// 카테고리 이름을 바꿀 때 상품의 이름 문자열(products.category)도 함께 맞춘다. 상품 목록이 이 문자열로 카테고리를 찾기 때문이다.
+export const renameCategoryWithProducts = async (id: string, oldName: string, newName: string): Promise<void> => {
+  const productIds = await getProductIdsOfCategory(id, oldName);
+  if (productIds.length > 0) {
+    const { error: productError } = await supabase
+      .from("products")
+      .update({ category: newName.trim(), category_id: id })
+      .in("id", productIds);
+    if (productError) throw productError;
+  }
 };
