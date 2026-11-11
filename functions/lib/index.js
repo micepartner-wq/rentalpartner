@@ -27,6 +27,7 @@ const FIELD_LABELS = {
     customerEmail: ["이메일", "?대찓??"],
     siteType: ["현장 유형", "?꾩옣 ?좏삎"],
     elevatorLabel: ["엘리베이터 여부", "?섎━踰좎씠???щ?"],
+    referralSource: ["유입경로"],
 };
 const normalizeEnvValue = (value) => value ? value.trim().replace(/^['"]|['"]$/g, "") : "";
 const normalizeEmail = (value) => value.trim().toLowerCase();
@@ -388,6 +389,7 @@ const parseBookingRequestNote = (rawNote) => {
         customerEmail: "",
         siteType: "",
         elevatorLabel: "",
+        referralSource: "",
         extraRequest: "",
     };
     if (!(rawNote === null || rawNote === void 0 ? void 0 : rawNote.trim())) {
@@ -435,6 +437,9 @@ const parseBookingRequestNote = (rawNote) => {
                 parsed.siteType = value;
             if (isOneOf(key, FIELD_LABELS.elevatorLabel)) {
                 parsed.elevatorLabel = value;
+            }
+            if (isOneOf(key, FIELD_LABELS.referralSource)) {
+                parsed.referralSource = value;
             }
         }
     });
@@ -518,6 +523,7 @@ const buildQuoteRequestEmailContent = (booking, product, userProfile) => {
     const customerEmail = parsedNote.customerEmail || (userProfile === null || userProfile === void 0 ? void 0 : userProfile.email) || booking.user_email || "-";
     const siteType = parsedNote.siteType || "-";
     const elevatorLabel = parsedNote.elevatorLabel || "-";
+    const referralSource = parsedNote.referralSource || "-";
     const extraRequest = parsedNote.extraRequest || "-";
     const adminUrl = `${getAppBaseUrl()}/admin/rental-requests`;
     const subject = `[휴먼파트너] 신규 견적 요청 - ${customerName} / ${productSummary}`;
@@ -548,6 +554,7 @@ const buildQuoteRequestEmailContent = (booking, product, userProfile) => {
         `설치 장소: ${booking.installation_place || "-"}`,
         `현장 유형: ${siteType}`,
         `엘리베이터 여부: ${elevatorLabel}`,
+        `유입경로: ${referralSource}`,
         "",
         "[추가 요청사항]",
         extraRequest,
@@ -600,6 +607,7 @@ const buildQuoteRequestEmailContent = (booking, product, userProfile) => {
         { label: "설치 장소", value: booking.installation_place || "-" },
         { label: "현장 유형", value: siteType },
         { label: "엘리베이터 여부", value: elevatorLabel },
+        { label: "유입경로", value: referralSource },
     ])}
               </tbody>
             </table>
