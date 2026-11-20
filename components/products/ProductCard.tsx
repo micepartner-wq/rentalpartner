@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { detectPhotoBackground } from "../../src/utils/imageBackground";
 import { Link } from "react-router-dom";
 import type { Product } from "../../src/api/productApi";
 import { usePriceDisplay } from "../../src/context/PriceDisplayContext";
@@ -22,6 +23,8 @@ const BADGE_TONES = [
 export const getCategoryBadgeTone = (index: number) =>
   index < 0 ? "bg-slate-100 text-slate-700" : BADGE_TONES[index % BADGE_TONES.length];
 
+const ANALYZE_TIMEOUT_MS = 2000;
+
 interface ProductCardProps {
   product: Product;
   badgeLabel?: string | null;
@@ -32,6 +35,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, badgeLabel, b
   const { mode, loading } = usePriceDisplay();
   // 4:3 안에 거의 맞는 가로형 사진은 꽉 채우고, 그 외(세로로 긴 제품컷 등)는 잘리지 않게 전체를 보여준다.
   const [fillFrame, setFillFrame] = useState(false);
+  // 배경이 있는 사진(제품컷이 아닌 공간·연출 사진)은 여백 없이 칸을 꽉 채운다. 분석이 끝나기 전에는 이미지를 숨겨 모양이 바뀌는 깜빡임을 막는다.
+  const [photoBackground, setPhotoBackground] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
   const showVariableQuoteText =
     !loading && (isInquiryPriceMode(mode) || typeof product.price !== "number" || !Number.isFinite(product.price) || product.price <= 0);
   const showDiscount =
@@ -52,9 +58,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, badgeLabel, b
             if (!naturalWidth || !naturalHeight) return;
             const ratio = naturalWidth / naturalHeight;
             setFillFrame(ratio >= 1.2 && ratio <= 1.9);
+            if (!product.image_url) { setImageReady(true); return; }
+            const timeout = new Promise<null>((resolve) => window.setTimeout(() => resolve(null), ANALYZE_TIMEOUT_MS));
+            Promise.race([detectPhotoBackground(product.image_url), timeout])
+              .then((isPhoto) => { if (isPhoto !== null) setPhotoBackground(isPhoto); })
+              .finally(() => setImageReady(true));
           }}
-          className={`h-full w-full transition-transform duration-500 group-hover:scale-105 ${
-            fillFrame ? "object-cover" : "object-contain p-3 mix-blend-multiply"
+          onError={() => setImageReady(true)}
+          className={`h-full w-full transition-[transform,opacity] duration-500 group-hover:scale-105 ${
+            imageReady ? "opacity-100" : "opacity-0"
+          } ${
+            fillFrame || photoBackground ? "object-cover" : "object-contain p-3 mix-blend-multiply"
           }`}
         />
         {badgeLabel && (

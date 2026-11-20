@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FC } from "react";
 import { ChevronLeft, ChevronRight, FileText, Handshake, Headphones } from "lucide-react";
 import type { Product } from "../../src/api/productApi";
 import { getProductSlideImages } from "../../src/utils/productGallery";
+import { detectPhotoBackground } from "../../src/utils/imageBackground";
 
 const FACTS = [
   { icon: FileText, label: "견적 방식", value: "일정·수량에 맞춘 맞춤 견적" },
@@ -10,6 +11,31 @@ const FACTS = [
 ];
 
 const IMG_CLASS = "block h-[240px] w-auto max-w-full object-contain mix-blend-multiply sm:h-[320px] lg:h-[400px]";
+// 배경이 있는 사진(공간·연출 사진)은 작은 상자 안에 떠 보이지 않도록 패널 폭을 꽉 채운다.
+const PHOTO_CLASS = "block aspect-[4/3] w-full rounded-lg object-cover";
+const ANALYZE_TIMEOUT_MS = 2000;
+// 세로로 긴 사진은 꽉 채우면 너무 많이 잘리므로 원래 방식(전체 보이기)을 쓴다.
+const MIN_FILL_RATIO = 0.85;
+
+/** 이미지 배경을 분석해 사진이면 꽉 채우고, 제품컷이면 기존처럼 전체를 보여 준다. 분석이 끝나기 전에는 숨겨 모양이 바뀌는 깜빡임을 막는다. */
+const SlideImage: FC<{ src: string; alt: string; eager?: boolean; draggable?: boolean }> = ({ src, alt, eager, draggable }) => {
+  const [fill, setFill] = useState(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setFill(false); setReady(false); }, [src]);
+  return (
+    <img src={src} alt={alt} draggable={draggable} loading={eager ? undefined : "lazy"}
+      onLoad={event => {
+        const { naturalWidth, naturalHeight } = event.currentTarget;
+        const ratio = naturalWidth && naturalHeight ? naturalWidth / naturalHeight : 1;
+        const timeout = new Promise<null>(resolve => window.setTimeout(() => resolve(null), ANALYZE_TIMEOUT_MS));
+        Promise.race([detectPhotoBackground(src), timeout])
+          .then(isPhoto => { if (isPhoto && ratio >= MIN_FILL_RATIO) setFill(true); })
+          .finally(() => setReady(true));
+      }}
+      onError={() => setReady(true)}
+      className={(fill ? PHOTO_CLASS : IMG_CLASS) + " transition-opacity duration-300 " + (ready ? "opacity-100" : "opacity-0")} />
+  );
+};
 
 /** 대표 이미지 + 추가 이미지 슬라이드(좌우 이동 애니메이션, 아래 썸네일). 이미지가 1장이면 이미지만 보인다. */
 const ProductImageSlider: FC<{ images: string[]; name: string }> = ({ images, name }) => {
@@ -29,7 +55,7 @@ const ProductImageSlider: FC<{ images: string[]; name: string }> = ({ images, na
     box.scrollTo({ left: thumb.offsetLeft - (box.clientWidth - thumb.clientWidth) / 2, behavior: "smooth" });
   }, [index]);
 
-  if (count <= 1) return <img src={images[0] || "https://picsum.photos/seed/product/800/600"} alt={name} className={IMG_CLASS} />;
+  if (count <= 1) return <SlideImage src={images[0] || "https://picsum.photos/seed/product/800/600"} alt={name} eager />;
   return (
     <div className="flex w-full flex-col items-center" role="group" aria-roledescription="carousel" aria-label={name + " 이미지"} tabIndex={0}
       onKeyDown={event => {
@@ -47,7 +73,7 @@ const ProductImageSlider: FC<{ images: string[]; name: string }> = ({ images, na
         <div className="flex transition-transform duration-500 ease-out motion-reduce:transition-none" style={{ transform: "translateX(-" + index * 100 + "%)" }}>
           {images.map((src, i) => (
             <div key={src + i} className="flex w-full shrink-0 items-center justify-center" aria-hidden={i !== index || undefined}>
-              <img src={src} alt={name + " " + (i + 1) + " / " + count} draggable={false} loading={i === 0 ? undefined : "lazy"} className={IMG_CLASS} />
+              <SlideImage src={src} alt={name + " " + (i + 1) + " / " + count} draggable={false} eager={i === 0} />
             </div>
           ))}
         </div>
