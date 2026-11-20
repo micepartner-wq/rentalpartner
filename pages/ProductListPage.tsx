@@ -285,9 +285,17 @@ export const ProductListPage: React.FC = () => {
       const categoryNameCompare = String(a.category || "").localeCompare(String(b.category || ""), "ko-KR");
       if (categoryNameCompare !== 0) return categoryNameCompare;
 
+      // 가구는 새로 등록한 모델을 먼저 보여주기 위해 가나다순 대신 최근 등록순으로 둔다.
+      const isFurniture = (category: typeof categoryA) =>
+        Boolean(getCategoryAncestors(category, byId)[0]?.name.includes("가구"));
+      if (isFurniture(categoryA) && isFurniture(categoryB)) {
+        const createdDiff = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        if (createdDiff !== 0) return createdDiff;
+      }
+
       return String(a.name || "").localeCompare(String(b.name || ""), "ko-KR");
     });
-  }, [categories, filteredProducts, sortBy, searchInCat]);
+  }, [byId, categories, filteredProducts, sortBy, searchInCat]);
 
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE));
   const activePage = Math.min(currentPage, totalPages);
