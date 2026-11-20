@@ -44,13 +44,15 @@ interface TaggedPhotoProps {
   status: TaggedProductsStatus;
   alt: string;
   errorText?: string;
+  /** 슬라이드에서 현재 보이는 사진인지. false 가 되면 열려 있던 상품 안내를 닫는다. */
+  active?: boolean;
 }
 
 /**
  * 사진 위에 + 표시(상품 태그)를 얹고, 올리거나 누르면 상품 안내 상자를 보여 준다.
  * 사진이 바뀌면 부모에서 key 를 바꿔 상태를 초기화한다.
  */
-export function TaggedPhoto({ photo, products, status, alt, errorText = '사진을 불러오지 못했습니다.' }: TaggedPhotoProps) {
+export function TaggedPhoto({ photo, products, status, alt, errorText = '사진을 불러오지 못했습니다.', active = true }: TaggedPhotoProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [imageReady, setImageReady] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -62,6 +64,7 @@ export function TaggedPhoto({ photo, products, status, alt, errorText = '사진�
   const cancelClose = () => window.clearTimeout(closeTimer.current);
   const scheduleClose = () => { cancelClose(); closeTimer.current = window.setTimeout(() => setSelectedId(null), 180); };
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  useEffect(() => { if (!active) setSelectedId(null); }, [active]);
 
   const selected = photo.hotspots.find(hotspot => hotspot.id === selectedId);
   const activeProduct = selected ? products[selected.product_id] : undefined;
