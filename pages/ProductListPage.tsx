@@ -271,10 +271,22 @@ export const ProductListPage: React.FC = () => {
       result = result.filter(p => p.name.toLowerCase().includes(q) || p.short_description?.toLowerCase().includes(q));
     }
 
+    // 가구는 새로 등록한 모델을 먼저 보여주기 위해 가나다순 대신 최근 등록순으로 둔다.
+    const isFurnitureProduct = (product: Product) =>
+      Boolean(getCategoryAncestors(resolveProductCategory(product, categories), byId)[0]?.name.includes("가구"));
+    const createdDesc = (a: Product, b: Product) =>
+      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    // 사무가구만 보고 있을 때는 서브카테고리 묶음 없이 전체를 최근 등록순으로 보여 준다.
+    const furnitureOnly = result.length > 0 && result.every(isFurnitureProduct);
+
     return result.sort((a, b) => {
       if (sortBy === 'price_desc') return (b.price || 0) - (a.price || 0);
       if (sortBy === 'price_asc') return (a.price || 0) - (b.price || 0);
       if (sortBy === 'name') return String(a.name || "").localeCompare(String(b.name || ""), "ko-KR");
+
+      if (furnitureOnly) {
+        return createdDesc(a, b) || String(a.name || "").localeCompare(String(b.name || ""), "ko-KR");
+      }
 
       const categoryA = resolveProductCategory(a, categories);
       const categoryB = resolveProductCategory(b, categories);
@@ -285,11 +297,9 @@ export const ProductListPage: React.FC = () => {
       const categoryNameCompare = String(a.category || "").localeCompare(String(b.category || ""), "ko-KR");
       if (categoryNameCompare !== 0) return categoryNameCompare;
 
-      // 가구는 새로 등록한 모델을 먼저 보여주기 위해 가나다순 대신 최근 등록순으로 둔다.
-      const isFurniture = (category: typeof categoryA) =>
-        Boolean(getCategoryAncestors(category, byId)[0]?.name.includes("가구"));
-      if (isFurniture(categoryA) && isFurniture(categoryB)) {
-        const createdDiff = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      // 여러 카테고리가 섞여 보일 때는 가구 상품끼리만 최근 등록순으로 둔다.
+      if (isFurnitureProduct(a) && isFurnitureProduct(b)) {
+        const createdDiff = createdDesc(a, b);
         if (createdDiff !== 0) return createdDiff;
       }
 
