@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { normalizeDescriptionImageAlignment } from '../../src/utils/descriptionHtml';
 import './ZoomableHtml.css';
 
 /**
@@ -9,6 +10,7 @@ import './ZoomableHtml.css';
  */
 export function ZoomableHtml({ html, className = '' }: { html: string; className?: string }) {
   const [src, setSrc] = useState<string | null>(null);
+  const content = useMemo(() => normalizeDescriptionImageAlignment(html), [html]);
 
   const isImage = (target: EventTarget | null): target is HTMLImageElement => target instanceof HTMLImageElement;
 
@@ -23,7 +25,7 @@ export function ZoomableHtml({ html, className = '' }: { html: string; className
 
   return (
     <>
-      <div className={'zh-root ' + className} dangerouslySetInnerHTML={{ __html: html }}
+      <div className={'zh-root ' + className} dangerouslySetInnerHTML={{ __html: content }}
         onClick={event => { if (isImage(event.target)) setSrc(event.target.currentSrc || event.target.src); }}
         onContextMenu={event => { if (isImage(event.target)) event.preventDefault(); }}
         onDragStart={event => { if (isImage(event.target)) event.preventDefault(); }} />
