@@ -278,13 +278,17 @@ export const ProductManager = () => {
 
     const handleEdit = async (product: Product) => {
         setEditingProduct(product);
+        // 대분류에 직접 지정된 상품은 중분류 칸을 비우고 대분류 칸에 표시한다.
+        const rootMatch = product.product_type === 'cooperative'
+            ? undefined
+            : productCategories.find((category) => category.name === product.category && !category.parent_id);
         setFormData({
             ...createEmptyFormData(
                 product.catalog_type || 'general',
                 (product.product_type || 'basic') as NonNullable<Product['product_type']>,
             ),
             name: product.name,
-            category: getNormalizedCategoryName(product.category),
+            category: rootMatch ? '' : getNormalizedCategoryName(product.category),
             price: product.price,
             description: product.description || '',
             short_description: product.short_description || '',
@@ -309,7 +313,7 @@ export const ProductManager = () => {
         } else {
             const matchedCategory = productCategories.find((category) => category.name === product.category);
             const parentCategory = matchedCategory?.parent_id ? productCategoryById.get(matchedCategory.parent_id) : null;
-            setSelectedParentCategory(parentCategory?.name || '');
+            setSelectedParentCategory(rootMatch?.name || parentCategory?.name || '');
         }
 
         setPackageComponentParentFilter(null);
@@ -329,11 +333,18 @@ export const ProductManager = () => {
         if (caseError) { alert(caseError); return; }
         const galleryError = getGalleryImagesValidationError(formData.gallery_images);
         if (galleryError) { alert(galleryError); return; }
+        if (isBasicProductEditor && !formData.category && !selectedParentCategory) {
+            alert('대분류를 선택해주세요. 중분류는 선택하지 않아도 됩니다.');
+            return;
+        }
         setSaving(true);
         try {
             const clean = (arr: any[]) => (arr || []).filter(i => i.name).map(({ _category, ...rest }) => rest);
             const isPackageProduct = formData.catalog_type === 'package' && formData.product_type === 'basic';
-            const categoryName = getNormalizedCategoryName(formData.category);
+            // 중분류를 고르지 않으면 선택한 대분류에 바로 지정한다.
+            const categoryName = getNormalizedCategoryName(
+                formData.category || (isBasicProductEditor ? selectedParentCategory : ''),
+            );
             // 같은 이름의 카테고리가 하나뿐일 때만 id 로 연결한다. 부가서비스 등은 categories 테이블 소속이 아니므로 비운다.
             const matchedCategories = isBasicProductEditor
                 ? productCategories.filter((category) => category.name.trim() === categoryName)
@@ -513,7 +524,7 @@ export const ProductManager = () => {
         }
 
         if (packageComponentParentFilter) {
-            const childCategoryNames = new Set(packageComponentChildMenus.map((item) => item.name));
+            const childCategoryNames = new Set([packageComponentParentFilter, ...packageComponentChildMenus.map((item) => item.name)]);
             return generalBasicProducts.filter((product) => childCategoryNames.has(getNormalizedCategoryName(product.category)));
         }
 
@@ -1057,16 +1068,15 @@ export const ProductManager = () => {
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1">2차 메뉴 (중분류) *</label>
+                                                <label className="block text-sm font-bold text-slate-700 mb-1">2차 메뉴 (중분류, 선택)</label>
                                                 <select
-                                                    required
                                                     value={formData.category}
                                                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                                     className="w-full px-4 py-2 border rounded-lg outline-none"
                                                     disabled={!selectedParentCategory}
                                                 >
                                                     <option value="">
-                                                        {!selectedParentCategory ? '대분류를 먼저 선택하세요' : '중분류 선택'}
+                                                        {!selectedParentCategory ? '대분류를 먼저 선택하세요' : '선택 안 함 (대분류에 등록)'}
                                                     </option>
                                                     {selectedParentCategory && (productChildCategoriesByParentName.get(selectedParentCategory) || [])
                                                         .map(child => (
@@ -1328,9 +1338,9 @@ export const ProductManager = () => {
                                                         전체 ({generalBasicProducts.length})
                                                     </button>
                                                     {packageComponentParentMenus.map((parent) => {
-                                                        const childNames = menuItems
+                                                        const childNames = [parent.name, ...menuItems
                                                             .filter((child) => child.category === parent.name)
-                                                            .map((child) => child.name);
+                                                            .map((child) => child.name)];
                                                         const count = generalBasicProducts.filter((product) =>
                                                             childNames.includes(getNormalizedCategoryName(product.category)),
                                                         ).length;
@@ -1662,7 +1672,7 @@ export const ProductManager = () => {
                                         // 대분류만 선택된 경우: 해당 대분류의 모든 중분류 상품 표시
                                         const childCategories = (productChildCategoriesByParentName.get(selectedParentCategoryFilter) || [])
                                             .map(m => m.name);
-                                        return childCategories.includes(p.category || '');
+                                        return childCategories.includes(p.category || '') || p.category === selectedParentCategoryFilter;
                                     }
                                     return true;
                                 }
