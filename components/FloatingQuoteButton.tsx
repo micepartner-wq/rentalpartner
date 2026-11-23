@@ -85,9 +85,6 @@ export const FloatingQuoteButton: React.FC = () => {
       >
         {/* 개별 버튼: PC는 항상 표시, 모바일은 메뉴를 열었을 때만 표시 */}
         <div className={`${isOpen ? 'flex' : 'hidden'} flex-col items-end gap-3 md:flex`}>
-          {/* 0. PC: 운영 상태·대표번호 상담 카드 */}
-          <ConsultStatusCard />
-
           {/* 1. 장바구니 버튼 */}
           <Link
             to="/quote-cart"
@@ -132,6 +129,9 @@ export const FloatingQuoteButton: React.FC = () => {
               <span className="relative inline-flex h-4 w-4 rounded-full bg-teal-500 border-2 border-white"></span>
             </span>
           </Link>
+
+          {/* 3-1. PC: 운영 상태·대표번호 상담 카드 (빠른 견적 문의 아래) */}
+          <ConsultStatusCard />
 
           {/* 4. 위로 가기 버튼 */}
           <button

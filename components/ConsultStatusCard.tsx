@@ -3,9 +3,9 @@ import { Phone } from 'lucide-react';
 import { useConsultInfo } from '../src/hooks/useConsultInfo';
 import { toTelHref } from '../src/utils/consultBar';
 
-/** PC 플로팅 버튼 위에 놓이는 상담 카드: 운영 상태, 대표번호, 운영시간. */
+/** PC 플로팅 버튼 위에 놓이는 상담 카드: 운영 상태, 대표번호. */
 export const ConsultStatusCard: React.FC = () => {
-  const { phone, business_hours_text: hoursText, status } = useConsultInfo();
+  const { phone, status } = useConsultInfo();
   return (
     <a
       href={toTelHref(phone)}
@@ -20,7 +20,6 @@ export const ConsultStatusCard: React.FC = () => {
         <Phone size={17} aria-hidden="true" />
         {phone}
       </span>
-      <span className="line-clamp-2 break-keep text-[11px] leading-snug text-slate-500">{hoursText}</span>
     </a>
   );
 };

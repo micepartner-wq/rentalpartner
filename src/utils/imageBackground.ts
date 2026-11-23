@@ -1,6 +1,8 @@
 const SAMPLE_SIZE = 40;
 const BORDER = 2;
 const CUTOUT_RATIO = 0.9;
+// 제품이 이미지 가장자리에 닿아 있어도(예: TV 윗부분) 나머지 테두리가 한 가지 밝은 색이면 제품컷으로 본다.
+const PLAIN_BORDER_RATIO = 0.75;
 
 /**
  * 이미지 테두리 픽셀로 "배경 없는 제품컷"인지 "배경이 있는 사진"인지 가른다.
@@ -22,11 +24,15 @@ export const isPlainBackgroundImage = (data: ArrayLike<number>, size: number = S
   if (transparent / border.length >= CUTOUT_RATIO) return true;
   if (opaque.length === 0) return true;
 
-  const mean = [0, 1, 2].map((c) => opaque.reduce((sum, p) => sum + p[c], 0) / opaque.length);
-  const brightness = (mean[0] + mean[1] + mean[2]) / 3;
-  const uniform = opaque.filter((p) => Math.max(...[0, 1, 2].map((c) => Math.abs(p[c] - mean[c]))) <= 24).length;
+  // 평균은 제품 픽셀에 끌려가므로, 배경색은 중앙값으로 잡는다.
+  const median = [0, 1, 2].map((c) => {
+    const sorted = opaque.map((p) => p[c]).sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+  });
+  const brightness = (median[0] + median[1] + median[2]) / 3;
+  const uniform = opaque.filter((p) => Math.max(...[0, 1, 2].map((c) => Math.abs(p[c] - median[c]))) <= 24).length;
   // 투명 + 균일한 밝은 배경을 합쳐서 판단한다. 어두운 배경은 제품컷 취급하지 않는다.
-  return brightness >= 200 && (transparent + uniform) / border.length >= CUTOUT_RATIO;
+  return brightness >= 200 && (transparent + uniform) / border.length >= PLAIN_BORDER_RATIO;
 };
 
 const cache = new Map<string, Promise<boolean | null>>();
