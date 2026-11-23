@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, FileText, Handshake, Headphones } from "luci
 import type { Product } from "../../src/api/productApi";
 import { getProductSlideImages } from "../../src/utils/productGallery";
 import { detectPhotoBackground } from "../../src/utils/imageBackground";
+import { ImageLogoMark } from "../ui/ImageLogoMark";
 
 const FACTS = [
   { icon: FileText, label: "견적 방식", value: "일정·수량에 맞춘 맞춤 견적" },
@@ -55,7 +56,12 @@ const ProductImageSlider: FC<{ images: string[]; name: string }> = ({ images, na
     box.scrollTo({ left: thumb.offsetLeft - (box.clientWidth - thumb.clientWidth) / 2, behavior: "smooth" });
   }, [index]);
 
-  if (count <= 1) return <SlideImage src={images[0] || "https://picsum.photos/seed/product/800/600"} alt={name} eager />;
+  if (count <= 1) return (
+    <div className="relative flex w-full justify-center">
+      <SlideImage src={images[0] || "https://picsum.photos/seed/product/800/600"} alt={name} eager />
+      <ImageLogoMark />
+    </div>
+  );
   return (
     <div className="flex w-full flex-col items-center" role="group" aria-roledescription="carousel" aria-label={name + " 이미지"} tabIndex={0}
       onKeyDown={event => {
@@ -81,7 +87,8 @@ const ProductImageSlider: FC<{ images: string[]; name: string }> = ({ images, na
           className="absolute left-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-[#001E45] hover:bg-white sm:left-2"><ChevronLeft size={26} /></button>
         <button type="button" onClick={() => go(1)} aria-label="다음 이미지"
           className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-[#001E45] hover:bg-white sm:right-2"><ChevronRight size={26} /></button>
-        <span className="absolute bottom-1 right-1 rounded-full bg-slate-500/70 px-2.5 py-1 text-xs font-semibold tabular-nums text-white sm:bottom-2 sm:right-2" aria-hidden="true">
+        <ImageLogoMark />
+        <span className="absolute bottom-1 left-1 rounded-full bg-slate-500/70 px-2.5 py-1 text-xs font-semibold tabular-nums text-white sm:bottom-2 sm:left-2" aria-hidden="true">
           <b>{index + 1}</b>/{count}
         </span>
       </div>

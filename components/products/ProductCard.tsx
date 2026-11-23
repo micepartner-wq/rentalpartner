@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { detectPhotoBackground } from "../../src/utils/imageBackground";
 import { Link } from "react-router-dom";
+import { ImageLogoMark } from "../ui/ImageLogoMark";
 import type { Product } from "../../src/api/productApi";
 import { usePriceDisplay } from "../../src/context/PriceDisplayContext";
 import {
@@ -71,6 +72,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, badgeLabel, b
             fillFrame || photoBackground ? "object-cover" : "object-contain p-3 mix-blend-multiply"
           }`}
         />
+        <ImageLogoMark />
         {badgeLabel && (
           <span
             className={`absolute left-3 top-3 rounded-md px-2.5 py-1 text-[12px] font-semibold leading-none ${getCategoryBadgeTone(badgeToneIndex)}`}

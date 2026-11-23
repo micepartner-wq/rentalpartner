@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ImageLogoMark } from '../ui/ImageLogoMark';
 import { getProducts, type Product } from '../../src/api/productApi';
 import { normalizeInstallationCases } from '../../src/utils/installationCases';
 import { isSafeSceneImageUrl, normalizeInstallationScenes } from '../../src/utils/installationScenes';
@@ -33,9 +34,10 @@ export function ProductInstallationCases({ productId, productName, cases }: { pr
                 <div>
                     <ul className="grid grid-cols-1 gap-3">
                         {photos.map((photo, index) => (
-                            <li key={photo.id} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                            <li key={photo.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                                 <img src={photo.image_url} alt={productName ? `${productName} ${index + 1}` : ''} loading="lazy" draggable={false}
                                     className="aspect-[16/10] w-full object-cover" />
+                                <ImageLogoMark />
                             </li>
                         ))}
                     </ul>

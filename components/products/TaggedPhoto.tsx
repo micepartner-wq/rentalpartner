@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ImageLogoMark } from '../ui/ImageLogoMark';
 import { getProductsByIds, type Product } from '../../src/api/productApi';
 import { isSafeSceneImageUrl, type InstallationHotspot } from '../../src/utils/installationScenes';
 import './PackageInstallationGallery.css';
@@ -87,6 +88,7 @@ export function TaggedPhoto({ photo, products, status, alt, errorText = '사진�
         ? <img className="pig-scene-image" src={photo.image_url} alt={alt}
             onLoad={() => setImageReady(true)} onError={() => setImageFailed(true)} />
         : <div className="pig-photo-error" role="status">{errorText}</div>}
+      {!imageFailed && <ImageLogoMark />}
       {imageReady && photo.hotspots.map((hotspot, index) => <button
         key={hotspot.id} type="button" className={'pig-hotspot' + (selectedId === hotspot.id ? ' is-selected' : '')}
         style={{ left: `clamp(22px, ${hotspot.x}%, calc(100% - 22px))`, top: `clamp(22px, ${hotspot.y}%, calc(100% - 22px))` }}

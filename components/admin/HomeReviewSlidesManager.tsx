@@ -114,7 +114,7 @@ export const HomeReviewSlidesManager: React.FC = () => {
         }
         setUploading(target);
         try {
-            const url = await uploadImage(file, 'home-review-slides', { watermark: true });
+            const url = await uploadImage(file, 'home-review-slides');
             setForm((current) => (current ? { ...current, [target === 'image' ? 'image_url' : 'mobile_image_url']: url } : current));
         } catch (err) {
             console.error('Failed to upload slide image:', err);

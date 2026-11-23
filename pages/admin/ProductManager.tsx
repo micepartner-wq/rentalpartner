@@ -603,7 +603,7 @@ export const ProductManager = () => {
         if (!file) return;
         setUploading(true);
         try {
-            const url = await uploadImage(file, 'products', { watermark: true });
+            const url = await uploadImage(file);
             setFormData({ ...formData, image_url: url });
         } catch (error) { alert('업로드 실패'); } finally { setUploading(false); }
     };

@@ -6,6 +6,7 @@ import { Header } from './components/Layout/Header';
 import { Footer } from './components/Layout/Footer';
 import { FloatingQuoteButton } from './components/FloatingQuoteButton';
 import { MobileConsultBar } from './components/MobileConsultBar';
+import { ImageProtection } from './components/ImageProtection';
 import { AuthProvider } from './src/context/AuthContext';
 import { PriceDisplayProvider } from './src/context/PriceDisplayContext';
 import { AdminRoute } from './src/components/AdminRoute';
@@ -219,6 +220,7 @@ function App() {
                     <Footer />
                     <FloatingQuoteButton />
                     <MobileConsultBar />
+                    <ImageProtection />
                   </div>
                 </div>
               }

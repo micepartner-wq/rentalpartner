@@ -40,7 +40,7 @@ export default function ProductGalleryEditor({ value, onChange, onBusyChange }: 
                     const cropped = await requestCrop(file);
                     if (!cropped) continue;
                     const safeFile = new File([cropped], 'product-gallery.' + EXTENSIONS[cropped.type], { type: cropped.type });
-                    const url = await uploadImage(safeFile, 'product-gallery', { watermark: true });
+                    const url = await uploadImage(safeFile, 'product-gallery');
                     if (!alive.current) return;
                     const latest = current.current;
                     latest.onChange([...latest.value, url]);
