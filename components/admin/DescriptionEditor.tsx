@@ -97,7 +97,7 @@ export const DescriptionEditor = ({ initialValue, onChange }: { initialValue: st
             if (file) {
                 setUploading(true);
                 try {
-                    const url = await uploadImage(file, 'description-images');
+                    const url = await uploadImage(file, 'description-images', { watermark: true });
                     execCmd('insertImage', url);
                 } catch (error) {
                     alert('이미지 업로드 실패');

@@ -79,6 +79,9 @@ export function Footer() {
                             <p className="mt-3 text-[13px] md:text-[14px] text-gray-400 font-medium">
                                 Copyright © 2024 렌탈어때. All rights reserved.
                             </p>
+                            <p className="mt-1 text-[12px] md:text-[13px] leading-6 text-gray-500 break-keep">
+                                본 사이트의 상품·설치 사진, 문구 등 모든 콘텐츠는 저작권법의 보호를 받으며, 사전 동의 없는 무단 복제·배포·도용 시 법적 책임을 질 수 있습니다.
+                            </p>
                         </div>
                     </div>
 

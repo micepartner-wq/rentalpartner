@@ -80,7 +80,7 @@ export default function PackageInstallationEditor({ value, onChange, products, o
             if (!valid) throw new Error('파일 내용과 이미지 형식이 일치하지 않습니다.');
             if (!alive.current) return;
             const safeFile = new File([file], 'installation.' + extensions[file.type], { type: file.type });
-            const imageUrl = await uploadImage(safeFile, 'package-installations');
+            const imageUrl = await uploadImage(safeFile, 'package-installations', { watermark: true });
             if (alive.current) appendImage(imageUrl);
         } catch (error) {
             if (alive.current) setMessage(error instanceof Error ? error.message : '사진 업로드에 실패했습니다. 다시 시도해 주세요.');

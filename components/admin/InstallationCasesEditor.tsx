@@ -44,7 +44,7 @@ export default function InstallationCasesEditor({ value, onChange, onBusyChange 
         current.current.onBusyChange?.(true);
         try {
             const safeFile = new File([file], 'installation-case.' + EXTENSIONS[file.type], { type: file.type });
-            const imageUrl = await uploadImage(safeFile, 'installation-cases');
+            const imageUrl = await uploadImage(safeFile, 'installation-cases', { watermark: true });
             const latest = current.current;
             if (alive.current && latest.value.length < MAX_INSTALLATION_CASES) {
                 latest.onChange([...latest.value, { id: createId(), image_url: imageUrl, caption: '' }]);

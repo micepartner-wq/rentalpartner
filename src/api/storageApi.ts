@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { watermarkImage } from '../utils/watermark';
 
 const BUCKET_NAME = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'humanpartner';
 
@@ -7,7 +8,9 @@ const BUCKET_NAME = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'humanpartne
  * @param file 업로드할 파일
  * @returns 업로드된 이미지의 public URL
  */
-export const uploadImage = async (file: File, folder: string = 'products'): Promise<string> => {
+export const uploadImage = async (file: File, folder: string = 'products', options: { watermark?: boolean } = {}): Promise<string> => {
+    // 상품·설치 사진은 도용을 막기 위해 로고를 넣어 올린다(options.watermark).
+    if (options.watermark) file = await watermarkImage(file);
     // 파일명 중복 방지를 위해 timestamp 추가
     const timestamp = Date.now();
     const extension = file.name.split('.').pop();
