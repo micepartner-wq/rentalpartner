@@ -1,9 +1,10 @@
-import { LayoutDashboard, Package, FolderTree, CalendarCheck, MessageSquare, Users, Image, Layers, PanelsTopLeft, HelpCircle, Mail, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, FolderTree, CalendarCheck, MessageSquare, Users, Image, Layers, PanelsTopLeft, HelpCircle, Mail, ClipboardCheck, type LucideIcon } from 'lucide-react';
 export interface AdminNavItem { path: string; label: string; description: string; icon: LucideIcon; exact?: boolean; }
 export const adminHome: AdminNavItem = { path: '/admin', label: '운영 홈', description: '오늘 처리할 업무를 확인하세요.', icon: LayoutDashboard, exact: true };
 export const adminNavGroups: { label: string; items: AdminNavItem[] }[] = [
   { label: '상품 관리', items: [
     { path: '/admin/products', label: '상품 목록', description: '상품 정보와 판매 구성을 관리합니다.', icon: Package },
+    { path: '/admin/product-quality', label: '상품 품질 점검', description: '소개·상세·이미지가 빠진 상품을 찾아 채웁니다.', icon: ClipboardCheck },
     { path: '/admin/menus', label: '상품 카테고리', description: '상품 분류와 전체 메뉴를 관리합니다.', icon: FolderTree },
   ] },
   { label: '고객·견적', items: [

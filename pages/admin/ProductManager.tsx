@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PackageInstallationEditor from '../../components/admin/PackageInstallationEditor';
 import InstallationCasesEditor from '../../components/admin/InstallationCasesEditor';
 import { DescriptionEditor } from '../../components/admin/DescriptionEditor';
@@ -119,6 +120,17 @@ export const ProductManager = () => {
     const [serviceCategoryTableMissing, setServiceCategoryTableMissing] = useState(false);
 
     useEffect(() => { loadData(); }, []);
+
+    // 상품 품질 점검 화면에서 넘어오면(?edit=상품id) 해당 상품의 편집 창을 바로 연다.
+    const [searchParams, setSearchParams] = useSearchParams();
+    useEffect(() => {
+        const editId = searchParams.get('edit');
+        if (!editId || loading) return;
+        const target = products.find((product) => product.id === editId);
+        setSearchParams({}, { replace: true });
+        if (target) void handleEdit(target);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, loading, products]);
 
     const loadData = async () => {
         try {
@@ -591,7 +603,7 @@ export const ProductManager = () => {
         if (!file) return;
         setUploading(true);
         try {
-            const url = await uploadImage(file);
+            const url = await uploadImage(file, 'products', { watermark: true });
             setFormData({ ...formData, image_url: url });
         } catch (error) { alert('업로드 실패'); } finally { setUploading(false); }
     };

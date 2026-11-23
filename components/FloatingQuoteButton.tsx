@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FileText, ChevronUp, ShoppingCart, MessageCircle, X } from 'lucide-react';
 import { getQuoteCartCount } from '../src/utils/quoteCart';
+import { isConsultBarRoute } from '../src/utils/consultBar';
+import { ConsultStatusCard } from './ConsultStatusCard';
 
 // 이 값(px)만 내려가도 버튼이 나타난다.
 const SHOW_AFTER_SCROLL_PX = 40;
@@ -79,10 +81,13 @@ export const FloatingQuoteButton: React.FC = () => {
       <div
         className={`fixed bottom-[90px] right-4 z-[90] flex flex-col items-end gap-3 transition-all duration-500 ease-out md:bottom-8 md:right-8 ${
           isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'
-        }`}
+        } ${isConsultBarRoute(pathname) ? 'max-md:hidden' : ''}`}
       >
         {/* 개별 버튼: PC는 항상 표시, 모바일은 메뉴를 열었을 때만 표시 */}
         <div className={`${isOpen ? 'flex' : 'hidden'} flex-col items-end gap-3 md:flex`}>
+          {/* 0. PC: 운영 상태·대표번호 상담 카드 */}
+          <ConsultStatusCard />
+
           {/* 1. 장바구니 버튼 */}
           <Link
             to="/quote-cart"

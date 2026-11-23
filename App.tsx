@@ -5,6 +5,7 @@ import { GlobalErrorFallback } from './components/ui/GlobalErrorFallback';
 import { Header } from './components/Layout/Header';
 import { Footer } from './components/Layout/Footer';
 import { FloatingQuoteButton } from './components/FloatingQuoteButton';
+import { MobileConsultBar } from './components/MobileConsultBar';
 import { AuthProvider } from './src/context/AuthContext';
 import { PriceDisplayProvider } from './src/context/PriceDisplayContext';
 import { AdminRoute } from './src/components/AdminRoute';
@@ -42,6 +43,7 @@ const BlankPage = lazyPage(() => import('./pages/BlankPage'), 'BlankPage');
 const NotFound = lazyPage(() => import('./pages/NotFound'), 'NotFound');
 const AdminDashboard = lazyPage(() => import('./pages/admin/AdminDashboard'), 'AdminDashboard');
 const ProductManager = lazyPage(() => import('./pages/admin/ProductManager'), 'ProductManager');
+const ProductQuality = lazyPage(() => import('./pages/admin/ProductQuality'), 'ProductQuality');
 const BookingList = lazyPage(() => import('./pages/admin/BookingList'), 'BookingList');
 const SectionManager = lazyPage(() => import('./pages/admin/SectionManager'), 'SectionManager');
 const CategoryManager = lazyPage(() => import('./pages/admin/CategoryManager'), 'CategoryManager');
@@ -156,6 +158,7 @@ function App() {
               <Route path="sections" element={withSuspense(<SectionManager />)} />
               <Route path="categories" element={withSuspense(<CategoryManager />)} />
               <Route path="products" element={withSuspense(<ProductManager />)} />
+              <Route path="product-quality" element={withSuspense(<ProductQuality />)} />
               <Route path="rental-requests" element={withSuspense(<BookingList />)} />
               <Route path="bookings" element={<Navigate to="/admin/rental-requests" replace />} />
               <Route path="users" element={withSuspense(<UserManager />)} />
@@ -215,6 +218,7 @@ function App() {
                   <div className="print:hidden">
                     <Footer />
                     <FloatingQuoteButton />
+                    <MobileConsultBar />
                   </div>
                 </div>
               }
