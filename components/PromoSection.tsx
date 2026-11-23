@@ -96,13 +96,15 @@ export const PromoSection: React.FC = () => {
         {showReviews && (
           <div className="grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-12">
             <div className="flex flex-col items-start lg:py-3">
-              <p className="flex items-center gap-3 text-[11px] font-bold tracking-[0.18em] text-[#26808b]">
-                <span className="h-px w-7 bg-[#26808b]" /> INSTALLATION STORIES
+              <p className="flex items-center gap-3 text-xs font-bold tracking-[0.18em] text-[#1d6f7a]">
+                <span className="h-px w-7 bg-[#1d6f7a]" /> INSTALLATION STORIES
               </p>
-              <p className="mt-7 text-sm font-semibold text-slate-500">설치후기</p>
-              <h2 className="mt-3 text-[32px] font-bold leading-[1.35] tracking-[-0.045em] text-[#001E45] md:text-[38px]">
-                설치 현장에서<br />만나는 렌탈어때
+              <h2 className="mt-6 text-[40px] font-bold leading-[1.2] tracking-[-0.05em] text-[#001E45] md:text-[48px]">
+                실제 설치후기
               </h2>
+              <p className="mt-3 break-keep text-[18px] font-semibold leading-snug text-slate-700">
+                설치 현장에서 만나는 렌탈어때
+              </p>
               <p className="mt-5 max-w-[300px] break-keep text-[15px] leading-7 text-slate-500">
                 시험장부터 사무실, 행사장까지.<br />
                 실제 설치 사진과 이야기로 우리 공간에 필요한 렌탈을 살펴보세요.

@@ -246,65 +246,99 @@ const grid = (items) =>
     ? '<p class="mt-6 text-sm text-slate-500">표시할 항목이 아직 없습니다.</p>'
     : `<div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">${items.join('')}</div>`;
 
-function homeBody(products, postsByBoard, priceDisplayMode) {
-  const productCards = products.slice(0, 8).map((product) => `
+function homeBody(products, postsByBoard, priceDisplayMode, categories = []) {
+  const description = STATIC_ROUTES.find(([route]) => route === '/')[2];
+  const byOrder = (a, b) => (a.display_order || 0) - (b.display_order || 0);
+
+  // 검색엔진이 홈에서 카테고리 → 상품으로 따라갈 수 있도록 실제 화면과 같은 카테고리 링크를 넣는다.
+  // 상품이 있는 카테고리만 링크한다(상품이 없으면 해당 정적 페이지가 만들어지지 않는다).
+  const categoryBlocks = categories.filter((category) => !category.parent_id).sort(byOrder).map((root) => {
+    const rootSlug = getCategorySlug(root);
+    if (!rootSlug) return '';
+    const children = categories.filter((category) => category.parent_id === root.id).sort(byOrder);
+    const childNames = new Set(children.map((child) => child.name));
+    if (!products.some((product) => product.category === root.name || childNames.has(product.category))) return '';
+    const childLinks = children.map((child) => {
+      const childSlug = getCategorySlug(child);
+      if (!childSlug || !products.some((product) => product.category === child.name)) return '';
+      return `<li><a href="/products/${escapeHtml(rootSlug)}/${escapeHtml(childSlug)}" class="text-sm text-slate-600">${escapeHtml(child.name)}</a></li>`;
+    }).join('');
+    return `
+        <div>
+          <h3 class="text-lg font-bold text-slate-900"><a href="/products/${escapeHtml(rootSlug)}">${escapeHtml(root.name)}</a></h3>
+          <ul class="mt-3 space-y-2">${childLinks}</ul>
+        </div>`;
+  }).join('');
+
+  const productCards = products.slice(0, 12).map((product) => `
       <a href="/products/${escapeHtml(product.id)}" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
         <div class="aspect-square overflow-hidden bg-slate-100"><img src="${escapeHtml(absUrl(product.image_url))}" alt="${escapeHtml(product.name)}" class="h-full w-full object-cover" /></div>
         <div class="space-y-2 p-4">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">${escapeHtml(product.category || '사무기기')}</p>
-          <h2 class="text-lg font-bold text-slate-900">${escapeHtml(product.name)}</h2>
+          <h3 class="text-lg font-bold text-slate-900">${escapeHtml(product.name)}</h3>
           <p class="text-sm text-slate-500">${escapeHtml(productSeoDescription(product))}</p>
           <p class="text-base font-bold text-[#001E45]">${escapeHtml(priceText(product.price, priceDisplayMode))}</p>
         </div>
       </a>
     `);
 
-  const postSections = Object.entries(BOARD_META).map(([boardType, meta]) => {
-    const items = (postsByBoard[boardType] || []).slice(0, 2).map((post) => `
+  const reviewItems = (postsByBoard.review || []).slice(0, 4).map((post) => `
         <li class="rounded-xl border border-slate-200 bg-white p-4">
-          <a href="${escapeHtml(`${meta.route}/${post.id}`)}" class="block">
+          <a href="${escapeHtml(`${BOARD_META.review.route}/${post.id}`)}" class="block">
             <h3 class="text-base font-bold text-slate-900">${escapeHtml(post.title)}</h3>
-            <p class="mt-2 text-sm leading-6 text-slate-600">${escapeHtml(postSeoDescription(post, meta.title))}</p>
+            <p class="mt-2 text-sm leading-6 text-slate-600">${escapeHtml(postSeoDescription(post, BOARD_META.review.title))}</p>
           </a>
         </li>
       `).join('');
 
-    return `
-      <section class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">${escapeHtml(meta.title)}</p>
-            <h2 class="mt-2 text-2xl font-black text-slate-900">${escapeHtml(meta.description)}</h2>
-          </div>
-          <a href="${escapeHtml(meta.route)}" class="text-sm font-semibold text-[#001E45]">더 보기</a>
-        </div>
-        <ul class="mt-5 space-y-3">${items || '<li class="text-sm text-slate-500">등록된 게시글이 없습니다.</li>'}</ul>
-      </section>
-    `;
-  }).join('');
-
+  // 아래 문구는 홈 화면의 이용 절차·인증 구역과 같은 내용이다. 화면 문구를 바꾸면 함께 고친다.
   return `
       <main class="mx-auto max-w-7xl px-4 py-10 md:px-6 md:py-14">
-        <section class="overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 px-6 py-12 text-white md:px-10 md:py-16">
-          <p class="text-sm font-semibold uppercase tracking-[0.32em] text-cyan-200">Office Rental Platform</p>
-          <h1 class="mt-5 max-w-4xl text-4xl font-black leading-tight md:text-6xl">사무기기 렌탈을 더 빠르고 명확하게, 렌탈어때</h1>
-          <p class="mt-5 max-w-3xl text-base leading-7 text-slate-200 md:text-lg">복합기, 노트북, 데스크탑, 프린터 등 기업 운영에 필요한 사무기기를 렌탈어때에서 합리적인 조건으로 상담하고 비교할 수 있습니다.</p>
-          <div class="mt-8 flex flex-wrap gap-3">
-            <a href="/products" class="rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900">상품 보러가기</a>
-            <a href="${escapeHtml(COMPANY_SITE_URL)}" class="rounded-full border border-white/30 px-6 py-3 text-sm font-bold text-white">회사소개</a>
-          </div>
+        <section>
+          <h1 class="text-4xl font-black leading-tight text-slate-900 md:text-5xl">렌탈어때 - 기업 행사·관공서 비품·사무기기 맞춤 종합 렌탈</h1>
+          <p class="mt-5 max-w-3xl text-base leading-7 text-slate-600">${escapeHtml(description)}</p>
+          <p class="mt-5 flex flex-wrap gap-3 text-sm font-bold">
+            <a href="/products" class="rounded-full bg-slate-900 px-6 py-3 text-white">렌탈 상품 보기</a>
+            <a href="/quote-request" class="rounded-full border border-slate-300 px-6 py-3 text-slate-900">맞춤 견적 요청</a>
+            <a href="tel:18001985" class="rounded-full border border-slate-300 px-6 py-3 text-slate-900">전화 상담 1800-1985</a>
+          </p>
         </section>
+        ${categoryBlocks ? `<section class="mt-12">
+          <h2 class="text-3xl font-black text-slate-900">렌탈 상품 카테고리</h2>
+          <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">${categoryBlocks}</div>
+        </section>` : ''}
         <section class="mt-12">
           <div class="flex items-end justify-between gap-4">
-            <div>
-              <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Featured Products</p>
-              <h2 class="mt-2 text-3xl font-black text-slate-900">주요 렌탈 상품</h2>
-            </div>
+            <h2 class="text-3xl font-black text-slate-900">주요 렌탈 상품</h2>
             <a href="/products" class="text-sm font-semibold text-[#001E45]">전체 상품 보기</a>
           </div>
           ${grid(productCards)}
         </section>
-        <section class="mt-14 grid gap-6 lg:grid-cols-3">${postSections}</section>
+        ${reviewItems ? `<section class="mt-14">
+          <div class="flex items-end justify-between gap-4">
+            <h2 class="text-3xl font-black text-slate-900">실제 설치후기 - 설치 현장에서 만나는 렌탈어때</h2>
+            <a href="${escapeHtml(BOARD_META.review.route)}" class="text-sm font-semibold text-[#001E45]">설치후기 더 보기</a>
+          </div>
+          <ul class="mt-6 grid gap-4 md:grid-cols-2">${reviewItems}</ul>
+        </section>` : ''}
+        <section class="mt-14">
+          <h2 class="text-3xl font-black text-slate-900">렌탈 이용 절차</h2>
+          <ol class="mt-6 grid gap-4 md:grid-cols-5">
+            <li><h3 class="font-bold text-slate-900">1. 견적 문의</h3><p class="mt-1 text-sm text-slate-600">필요한 상품과 이용 기간을 알려주세요.</p></li>
+            <li><h3 class="font-bold text-slate-900">2. 맞춤 상담</h3><p class="mt-1 text-sm text-slate-600">용도와 예산에 맞는 구성을 함께 찾습니다.</p></li>
+            <li><h3 class="font-bold text-slate-900">3. 계약 확정</h3><p class="mt-1 text-sm text-slate-600">렌탈 조건과 설치 일정을 확인합니다.</p></li>
+            <li><h3 class="font-bold text-slate-900">4. 설치·납품</h3><p class="mt-1 text-sm text-slate-600">협의한 장소와 일정에 맞춰 준비합니다.</p></li>
+            <li><h3 class="font-bold text-slate-900">5. 이용·관리</h3><p class="mt-1 text-sm text-slate-600">이용 중 필요한 사항을 담당자에게 문의하세요.</p></li>
+          </ol>
+        </section>
+        <section class="mt-14">
+          <h2 class="text-2xl font-black text-slate-900">렌탈어때의 인증·지정 내역</h2>
+          <ul class="mt-4 space-y-2 text-sm text-slate-600">
+            <li>장애인기업 인증</li>
+            <li>대전 MICE 우수기업</li>
+          </ul>
+          <p class="mt-4 text-sm text-slate-600">고객센터 1800-1985 · 평일 09:00~18:00 (점심 12:00~13:00), 주말 및 공휴일 휴무</p>
+        </section>
       </main>
     `;
 }
@@ -531,13 +565,14 @@ ${rssItems}
   fs.writeFileSync(path.join(distDir, 'rss.xml'), xml, 'utf8');
 }
 
-function buildStaticPages(products, postsByBoard, priceDisplayMode) {
+function buildStaticPages(products, postsByBoard, priceDisplayMode, categories = []) {
   return STATIC_ROUTES.map(([route, title, description, changefreq, priority, robots]) => {
     let bodyHtml = genericBody(title, description);
     let structuredData = [];
 
     if (route === '/') {
-      bodyHtml = '';
+      // 홈도 본문을 미리 넣어 검색엔진이 자바스크립트 없이도 카테고리·상품 링크를 따라갈 수 있게 한다.
+      bodyHtml = homeBody(products, postsByBoard, priceDisplayMode, categories);
       structuredData = [
         itemListSchema('렌탈어때 주요 상품', canonical('/products'), products.slice(0, 8).map((product) => ({
           name: product.name,
@@ -757,7 +792,7 @@ async function main() {
   }, {});
 
   const pages = [
-    ...buildStaticPages(products, postsByBoard, priceDisplayMode),
+    ...buildStaticPages(products, postsByBoard, priceDisplayMode, categories),
     ...buildCategoryPages(categories, products, priceDisplayMode),
     ...buildProductPages(products, priceDisplayMode),
     ...buildPostPages(posts),
