@@ -485,7 +485,7 @@ const prepareImagesWrite = (images: ReviewPhoto[] | undefined): ReviewPhoto[] | 
     return normalizeReviewPhotos(images);
 };
 
-export const addBoardPost = async (post: Omit<BoardPost, 'id' | 'created_at' | 'updated_at'>): Promise<BoardPost> => {
+export const addBoardPost = async (post: Omit<BoardPost, 'id' | 'updated_at'>): Promise<BoardPost> => {
     const payload = { ...post };
     const images = prepareImagesWrite(payload.images);
     if (images !== undefined) payload.images = images;

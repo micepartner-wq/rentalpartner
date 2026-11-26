@@ -7,6 +7,7 @@ import { addBoardPost, getBoardPostById, getBoardPosts, updateBoardPost } from '
 import { getBoardCategories } from '../src/api/siteSettingsApi';
 import { useAuth } from '../src/context/AuthContext';
 import { MAX_REVIEW_PHOTOS, normalizeReviewPhotos, splitLegacyContent, type ReviewPhoto } from '../src/utils/reviewPhotos';
+import { fromDateInputValue, todayDateInputValue, toDateInputValue } from '../src/utils/postDate';
 
 // 사례를 같은 틀로 쓰기 위한 소제목(원하면 한 번에 넣을 수 있다).
 const CASE_TEMPLATE = [
@@ -34,6 +35,9 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
   const [summary, setSummary] = useState('');
   const [body, setBody] = useState('');
   const [displayOrder, setDisplayOrder] = useState(1);
+  // 목록·상세에 보이는 날짜. 손대지 않으면 저장하지 않아서 새 글은 등록한 날, 수정은 기존 날짜가 그대로 유지된다.
+  const [postDate, setPostDate] = useState(() => todayDateInputValue());
+  const [postDateEdited, setPostDateEdited] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [loadingPost, setLoadingPost] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -70,6 +74,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
         setSummary(post.summary || '');
         setCategory(post.category || '');
         setDisplayOrder(Number(post.display_order || 1));
+        setPostDate(toDateInputValue(post.created_at) || todayDateInputValue());
 
         // 새 방식 글은 images 를 그대로, 예전 글(본문에 사진이 섞인 형식)은 사진과 글로 나눠서 불러온다.
         const { urls, text } = splitLegacyContent(post.content);
@@ -120,6 +125,14 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
     if (!normalizedTitle) { setError('제목을 입력해 주세요.'); return; }
     if (!normalizedCategory) { setError('카테고리를 선택해 주세요.'); return; }
 
+    let createdAt: string | undefined;
+    if (postDateEdited) {
+      const iso = fromDateInputValue(postDate);
+      if (!iso) { setError('설치일을 올바르게 입력해 주세요.'); return; }
+      if (postDate > todayDateInputValue()) { setError('설치일은 오늘 이후로 정할 수 없습니다.'); return; }
+      createdAt = iso;
+    }
+
     // 첫 번째 사진이 목록·공유에 쓰이는 대표 이미지다.
     const cover = photos[0].image_url;
     setSubmitting(true);
@@ -135,6 +148,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
           images: photos,
           display_order: displayOrder,
           is_active: true,
+          ...(createdAt ? { created_at: createdAt } : {}),
         });
         navigate(updated.id ? `/review/${updated.id}` : '/review', { replace: true });
       } else {
@@ -153,6 +167,7 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
           images: photos,
           display_order: nextDisplayOrder,
           is_active: true,
+          ...(createdAt ? { created_at: createdAt } : {}),
         });
         navigate(created.id ? `/review/${created.id}` : '/review', { replace: true });
       }
@@ -198,6 +213,14 @@ export const ReviewCreatePage: React.FC<ReviewCreatePageProps> = ({ editPostId }
                 <input id="review-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={200}
                   placeholder="예) 국가기술자격시험장 PC 120대 설치"
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900" />
+              </div>
+
+              <div>
+                <label htmlFor="review-date" className="mb-2 block text-sm font-semibold text-slate-700">설치일 <span className="font-normal text-slate-400">(목록·상세에 표시되는 날짜)</span></label>
+                <input id="review-date" type="date" value={postDate} max={todayDateInputValue()}
+                  onChange={e => { setPostDate(e.target.value); setPostDateEdited(true); }}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900 sm:w-56" />
+                <p className="mt-1 text-xs text-slate-400">실제 설치한 날로 바꿀 수 있어요. 바꾸지 않으면 {isEditMode ? '기존 날짜가 유지돼요.' : '등록한 날로 표시돼요.'}</p>
               </div>
 
               <div>

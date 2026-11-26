@@ -790,6 +790,10 @@ async function main() {
     acc[post.board_type].push(post);
     return acc;
   }, {});
+  // 설치후기는 사이트 화면과 같이 날짜가 최신인 글부터 보여 준다(날짜를 고치면 순서도 바뀐다).
+  if (postsByBoard.review) {
+    postsByBoard.review.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  }
 
   const pages = [
     ...buildStaticPages(products, postsByBoard, priceDisplayMode, categories),

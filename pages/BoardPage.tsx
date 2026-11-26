@@ -153,7 +153,8 @@ export const BoardPage: React.FC<BoardPageProps> = ({ boardType }) => {
       ? posts
       : posts.filter((post) => (post.category || '').trim() === activeCategory);
 
-    const sortedPosts = activeCategory === '전체'
+    // 설치후기는 카테고리와 관계없이 날짜 최신순. 다른 게시판은 "전체"만 날짜순이고 나머지는 표시 순서를 따른다.
+    const sortedPosts = (activeCategory === '전체' || boardType === 'review')
       ? [...categoryFilteredPosts].sort((a, b) => {
         const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
         const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -168,7 +169,7 @@ export const BoardPage: React.FC<BoardPageProps> = ({ boardType }) => {
       const haystacks = [post.title, stripGnbContentImages(post.content)];
       return haystacks.some((text) => text.toLowerCase().includes(keyword));
     });
-  }, [activeCategory, posts, searchTerm]);
+  }, [activeCategory, boardType, posts, searchTerm]);
 
   useEffect(() => {
     setCurrentPage(1);
